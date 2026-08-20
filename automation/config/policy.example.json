@@ -1,0 +1,24 @@
+{
+  "$comment": "Safety policy for the automation runtime. Copy to automation/config/policy.json to override. Route patterns and risky-name patterns are JavaScript regular expressions; route patterns are matched against URL.pathname and name patterns against a target's accessible name, case-insensitively.",
+  "allowedOrigins": ["http://localhost:5173"],
+  "allowedRoutePatterns": ["^/$"],
+  "allowedActionTypes": ["click", "fill", "select", "navigate", "extract"],
+  "riskClassification": {
+    "defaultRisk": "safe",
+    "safeActionTypes": ["navigate", "extract", "fill", "select"],
+    "riskyActionTypes": [],
+    "riskyTargetNamePatterns": [
+      "^confirm\\b",
+      "\\bcreate\\b",
+      "\\bopen sub-account\\b",
+      "\\b(submit|approve|transfer|delete|close)\\b"
+    ]
+  },
+  "limits": {
+    "maxStepsPerRun": 40,
+    "actionTimeoutMs": 10000,
+    "navigationTimeoutMs": 20000,
+    "maxObservationNodes": 200,
+    "maxTextLength": 240
+  }
+}

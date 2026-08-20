@@ -3,11 +3,16 @@
   "private": true,
   "version": "0.0.0",
   "workspaces": [
-    "mock-console"
+    "mock-console",
+    "automation"
   ],
   "scripts": {
     "dev": "npm run dev --workspace mock-console",
     "build": "npm run build --workspace mock-console",
-    "test": "npm run test --workspace mock-console"
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "automation": "npm run cli --workspace automation --",
+    "test:mock-console": "npm run test --workspace mock-console",
+    "test:automation": "npm run test --workspace automation"
   }
 }
