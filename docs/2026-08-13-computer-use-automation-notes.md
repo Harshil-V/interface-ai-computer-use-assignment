@@ -3,8 +3,9 @@
 **Source brief:** Assignment A — Computer-Use Automation System  
 **Repo:** `interface-ai-computer-use-assignment`  
 **Git home:** this checkout (public remote intended: `Harshil-V/interface-ai-computer-use-assignment`)  
-**Status:** Planning notes only — nothing implemented yet  
-**Date:** 2026-08-13
+**Status:** Part A (`mock-console/`) complete and committed; Part B (`automation/`) in progress  
+**Date:** 2026-08-13  
+**Part B implementation plan:** [`plans/2026-08-20-part-b-automation-system-plan.md`](../plans/2026-08-20-part-b-automation-system-plan.md)
 
 ---
 
@@ -51,6 +52,16 @@ Part A exists so Part B has something real to click. Part B is what gets graded.
 ### Session model (**Decided**)
 
 No login screen. Instead: a lightweight in-memory session token is issued on first load of the console. After N seconds idle (config constant, also force-expirable via a test hook for reliable demos), member-detail and sub-account screens return a "session expired" state instead of data — a real, non-injected way to produce the **session timeout** exceptional state that §3.3 names explicitly, without the cost of a full auth flow.
+
+**Decided: expiry is sticky.** Once expired — by idle timeout or by any of the three force-expire paths — the session stays expired until the user explicitly re-establishes it via "Start a new session". Activity still resets the idle clock; it no longer un-expires.
+
+| Event | Effect on idle clock | Effect on expired state |
+|-------|----------------------|-------------------------|
+| Click / keypress anywhere | Reset | **None** (sticky) |
+| Idle past timeout, or force-expire | — | Expired |
+| "Start a new session" click | Reset | Cleared |
+
+Why it matters: the console resets the idle clock on any click, so a non-sticky expiry would revive the session at the first click after expiry — including a click on the expired notice itself, making that notice's button decorative. It also makes the recoverable-condition demo unreachable: replay may only use allowlisted UI actions (click / fill / select / navigate, no JS evaluation), so its very first click would clear the state before a session-guarded screen could render it.
 
 ### Built-in cases
 
@@ -366,6 +377,9 @@ Logical build order — tick as you go.
 
 Do not start stretch until 1–9 are demoable.
 
+Part B's build order is expanded (and deliberately re-ordered to front-load the real LLM run) in
+[`plans/2026-08-20-part-b-automation-system-plan.md`](../plans/2026-08-20-part-b-automation-system-plan.md).
+
 ---
 
 ## 13. Explicit cuts / non-goals
@@ -406,11 +420,28 @@ Cross-check every deliverable against **Assignment A — Computer-Use Automation
 | 1 | Exact artifact JSON schema (required fields, locator shape, outcome encoding) | **Open** | Start from §11 sketch; freeze after first discovery emit |
 | 2 | Login in v1 Part A? | **Decided** | Cut. Session-timeout instead covered by a lightweight in-memory session + idle expiry, no auth screen — see §3 |
 | 3 | Stretch goal (pick ≤1) | **Open** | Choose after vertical slice works |
-| 4 | LLM provider / model for discovery | **Open** | Whatever is fastest to wire with tool-calling |
+| 4 | LLM provider / model for discovery | **Decided** | Anthropic (Claude) via the Anthropic TypeScript SDK with tool use; `ANTHROPIC_API_KEY` from `.env`. Exact model ID to be confirmed against Anthropic's current docs at implementation time, not hardcoded from memory |
 | 5 | Part A stack (plain HTML vs small React/Vite app) | **Decided** | Vite + minimal React (or static HTML) + JSON mock data — see §5 |
 | 6 | How “risky” steps trigger HITL automatically vs manual force for demo | **Open** | Force for demo reliability; optional auto rules later |
 | 7 | Artifact store location (repo folder vs runtime dir) | **Decided** | Repo `artifacts/` folder (see §6); evidence under `evidence/` |
 | 8 | Repo folder layout (flat vs apps/packages monorepo) | **Decided** | Flat `mock-console/` + `automation/` — see §6 |
+| 9 | Redaction stance (what gets masked, where) | **Decided** | Mask in **persisted** evidence/logs, full values to the in-process caller — see subsection below |
+
+### Redaction stance (**Decided**)
+
+Masking applies at the **persistence boundary**, not at the call boundary.
+
+| Surface | Treatment |
+|---------|-----------|
+| Persisted evidence / step logs | **Masked** (e.g. last-4), driven by the artifact's `sensitivity` classification |
+| In-process caller (replay return value) | **Full value** — a calling agent legitimately needs the real balance |
+| Saved a11y snapshots | Snapshot **text masked before persisting** |
+| Screenshots | **Accepted as-is (unmasked)** — pixel-level redaction is out of scope |
+
+**Known limitation:** screenshots and saved a11y snapshots are the leak path — they capture whatever
+was on screen. The a11y snapshot side is closed by masking text before write; the screenshot side is
+deliberately not, and that gap must be **disclosed in `REPORT.md` §6 "Safety"** as a stated limit
+rather than left for a reviewer to find.
 
 ---
 
@@ -420,12 +451,14 @@ Cross-check every deliverable against **Assignment A — Computer-Use Automation
 - Flat repo: `mock-console/` + `automation/` (+ `artifacts/`, `evidence/`); A ↛ B imports; B↔A over HTTP/Playwright only
 - Tech: A = Vite + minimal React (or static HTML) + JSON mocks; B = TypeScript + Playwright + LLM SDK + JSON artifacts + tiny HITL + CLI
 - Target cases: `12345`, `99999`, empty validation, idle session timeout
-- No login screen; session-timeout covered by lightweight in-memory session + idle expiry instead
+- No login screen; session-timeout covered by lightweight in-memory session + idle expiry instead; expiry is sticky until "Start a new session"
 - Sub-account open flow is in scope (not cut) — real irreversible action for guardrails/HITL
 - One process / one Playwright session per run
 - Modes: discovering | replaying | human
 - Controller: automation | human | paused
 - HITL = mock operator + same session; no full co-browse
 - Replay error taxonomy: business / recoverable / hard
+- Discovery LLM = Anthropic (Claude) via the Anthropic TypeScript SDK with tool use; model ID confirmed against current docs at implementation time
+- Redaction: mask in persisted evidence/logs, full values to the in-process caller; a11y snapshot text masked before persist; screenshots unmasked and disclosed as a limit in `REPORT.md` §6
 - Multi-tenant / heterogeneity = REPORT design only
-- Planning notes only as of this doc — no implementation claimed
+- Part A built to these decisions and committed; Part B build order lives in `plans/2026-08-20-part-b-automation-system-plan.md`
