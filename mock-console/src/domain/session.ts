@@ -17,3 +17,12 @@ export function isSessionExpired(lastActivityAt: number, now: number): boolean {
 export function toForceExpiredTimestamp(now: number): number {
   return now - SESSION_IDLE_TIMEOUT_MS - FORCE_EXPIRE_MARGIN_MS;
 }
+
+/**
+ * Expiry is sticky: once expired, only an explicit re-establish clears it. Without this, the
+ * ambient click/keypress activity listeners would revive the session before a session-guarded
+ * screen could render its "session expired" state.
+ */
+export function nextExpiredState(wasExpired: boolean, lastActivityAt: number, now: number): boolean {
+  return wasExpired || isSessionExpired(lastActivityAt, now);
+}

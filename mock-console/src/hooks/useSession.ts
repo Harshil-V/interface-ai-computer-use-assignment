@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isSessionExpired, toForceExpiredTimestamp } from '../domain/session';
+import { isSessionExpired, nextExpiredState, toForceExpiredTimestamp } from '../domain/session';
 
 /** URL query param that force-expires the session on load, for reliable automation/demo setup. */
 export const FORCE_EXPIRE_SESSION_QUERY_PARAM = 'forceExpireSession';
@@ -12,8 +12,10 @@ const EXPIRY_CHECK_INTERVAL_MS = 1000;
 
 export interface SessionController {
   isExpired: boolean;
-  /** Re-establishes the session, e.g. after the user acknowledges "session expired". */
+  /** Resets the idle clock. Never clears an existing expiry — expiry is sticky. */
   recordActivity: () => void;
+  /** The only way out of the expired state: the user acknowledged "session expired". */
+  reestablishSession: () => void;
   /** Test-only escape hatch: skips waiting out SESSION_IDLE_TIMEOUT_MS in real time. */
   forceExpire: () => void;
 }
@@ -42,6 +44,10 @@ export function useSession(): SessionController {
 
   const recordActivity = useCallback(() => {
     setLastActivityAt(Date.now());
+  }, []);
+
+  const reestablishSession = useCallback(() => {
+    setLastActivityAt(Date.now());
     setIsExpired(false);
   }, []);
 
@@ -53,7 +59,7 @@ export function useSession(): SessionController {
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
-      setIsExpired(isSessionExpired(lastActivityRef.current, Date.now()));
+      setIsExpired((wasExpired) => nextExpiredState(wasExpired, lastActivityRef.current, Date.now()));
     }, EXPIRY_CHECK_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
   }, []);
@@ -66,5 +72,5 @@ export function useSession(): SessionController {
     };
   }, [forceExpire]);
 
-  return { isExpired, recordActivity, forceExpire };
+  return { isExpired, recordActivity, reestablishSession, forceExpire };
 }

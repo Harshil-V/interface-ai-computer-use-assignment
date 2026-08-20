@@ -21,7 +21,7 @@ const ACTIVITY_EVENT_TYPES = ['click', 'keydown'] as const;
 
 function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'lookup' });
-  const { isExpired, recordActivity, forceExpire } = useSession();
+  const { isExpired, recordActivity, reestablishSession, forceExpire } = useSession();
 
   useEffect(() => {
     const handleActivity = () => recordActivity();
@@ -40,7 +40,7 @@ function App() {
   }
 
   function reestablishSessionAndReturnToLookup() {
-    recordActivity();
+    reestablishSession();
     goToLookup();
   }
 

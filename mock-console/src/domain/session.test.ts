@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { isSessionExpired, SESSION_IDLE_TIMEOUT_MS, toForceExpiredTimestamp } from './session';
+import {
+  isSessionExpired,
+  nextExpiredState,
+  SESSION_IDLE_TIMEOUT_MS,
+  toForceExpiredTimestamp,
+} from './session';
 
 describe('isSessionExpired', () => {
   it('is not expired when no idle time has passed', () => {
@@ -37,5 +42,41 @@ describe('toForceExpiredTimestamp', () => {
     const forced = toForceExpiredTimestamp(now);
 
     expect(isSessionExpired(forced, now)).toBe(true);
+  });
+});
+
+describe('nextExpiredState', () => {
+  it('stays expired even when activity is fresh', () => {
+    const lastActivityAt = 1_000_000;
+    const now = lastActivityAt;
+
+    expect(nextExpiredState(true, lastActivityAt, now)).toBe(true);
+  });
+
+  it('stays expired when activity is fresh but still short of the idle timeout', () => {
+    const lastActivityAt = 1_000_000;
+    const now = lastActivityAt + SESSION_IDLE_TIMEOUT_MS - 1;
+
+    expect(nextExpiredState(true, lastActivityAt, now)).toBe(true);
+  });
+
+  it('stays active while activity is fresh', () => {
+    const lastActivityAt = 1_000_000;
+    const now = lastActivityAt + SESSION_IDLE_TIMEOUT_MS - 1;
+
+    expect(nextExpiredState(false, lastActivityAt, now)).toBe(false);
+  });
+
+  it('becomes expired once activity is stale', () => {
+    const lastActivityAt = 1_000_000;
+    const now = lastActivityAt + SESSION_IDLE_TIMEOUT_MS;
+
+    expect(nextExpiredState(false, lastActivityAt, now)).toBe(true);
+  });
+
+  it('reports expired for a force-expired timestamp on a previously active session', () => {
+    const now = 5_000_000;
+
+    expect(nextExpiredState(false, toForceExpiredTimestamp(now), now)).toBe(true);
   });
 });

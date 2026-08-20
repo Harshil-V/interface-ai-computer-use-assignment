@@ -55,6 +55,13 @@ the sub-account confirmation step) render a distinct "session expired" state ins
 their normal content. This is deliberately different from "member not found" — it
 represents the session lapsing, not a business lookup result.
 
+Expiry is **sticky**: once a session has expired (however it expired), continued clicks
+and keypresses keep resetting the idle clock but no longer un-expire it. The only way
+back to an active session is clicking **"Start a new session"** on the expired notice.
+Without stickiness the ambient activity listeners would revive the session on the very
+next click — including a click on the expired notice itself — so no session-guarded
+screen could ever be reached in the expired state, whether by a person or by automation.
+
 Because waiting out a real idle timeout is impractical for demos and automation, there
 are three ways to force expiry immediately:
 
