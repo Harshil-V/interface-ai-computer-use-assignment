@@ -66,6 +66,7 @@ async function runSnapshot(
     headless: config.headless,
     actionTimeoutMs: config.policy.limits.actionTimeoutMs,
     navigationTimeoutMs: config.policy.limits.navigationTimeoutMs,
+    policy: config.policy,
     snapshotLimits: {
       maxNodes: config.policy.limits.maxObservationNodes,
       maxTextLength: config.policy.limits.maxTextLength,

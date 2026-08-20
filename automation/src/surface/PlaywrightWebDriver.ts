@@ -1,4 +1,6 @@
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright';
+import type { Policy } from '../config.ts';
+import { checkAction, type GuardrailDecision } from '../guardrails/policy.ts';
 import { parseAriaSnapshot } from './ariaYaml.ts';
 import { buildSnapshot, DEFAULT_SNAPSHOT_LIMITS, type SnapshotLimits } from './snapshot.ts';
 import type {
@@ -40,6 +42,7 @@ export interface PlaywrightWebDriverOptions {
   readonly headless: boolean;
   readonly actionTimeoutMs: number;
   readonly navigationTimeoutMs: number;
+  readonly policy: Policy;
   readonly snapshotLimits?: SnapshotLimits;
   readonly screenshotStore?: ScreenshotStore | null;
 }
@@ -102,16 +105,39 @@ export class PlaywrightWebDriver implements SurfaceDriver, SurfaceSession {
     };
   }
 
+  /**
+   * Guardrails run first and unconditionally, before any page interaction, so nothing
+   * that holds this driver — discovery, replay, or a future caller — can reach the page
+   * without passing the same check.
+   *
+   * The plan's prose describes blocked actions as throwing a typed `PolicyViolation`.
+   * This driver returns a normal `ActResult` with `failure.code` set to
+   * `'policy_blocked'` or `'policy_intervention_required'` instead: every other failure
+   * mode here (`unknown_ref`, `timeout`, ...) already reports through that same typed
+   * result, and a thrown exception would be the one caller-visible divergence from that
+   * contract — forcing discovery and replay to special-case guardrail failures instead
+   * of handling one uniform shape. The two outcomes stay distinguishable by failure
+   * code precisely so Milestone 7 can route `policy_intervention_required` to the HITL
+   * path without redesigning this result.
+   */
   async act(action: Action): Promise<ActResult> {
     const startedAt = Date.now();
 
     if (action.kind === 'navigate') {
-      return this.navigate(action.url, startedAt);
+      const decision = checkAction(action, this.options.policy);
+      return decision.outcome === 'allow'
+        ? this.navigate(action.url, startedAt)
+        : this.policyFailed(action.kind, startedAt, decision);
     }
 
     const target = this.targets.get(action.ref);
     if (target === undefined) {
       return this.failed(action.kind, startedAt, 'unknown_ref', `No such ref "${action.ref}".`);
+    }
+
+    const decision = checkAction(action, this.options.policy, target.name);
+    if (decision.outcome !== 'allow') {
+      return this.policyFailed(action.kind, startedAt, decision, target);
     }
 
     const locator = await this.locate(target);
@@ -277,6 +303,17 @@ export class PlaywrightWebDriver implements SurfaceDriver, SurfaceSession {
       return null;
     }
     return await store.writeScreenshot(await this.page.screenshot(), label);
+  }
+
+  private policyFailed(
+    kind: ActResult['kind'],
+    startedAt: number,
+    decision: Exclude<GuardrailDecision, { readonly outcome: 'allow' }>,
+    target?: TargetDescriptor,
+  ): ActResult {
+    const code: ActFailureCode =
+      decision.outcome === 'block' ? 'policy_blocked' : 'policy_intervention_required';
+    return this.failed(kind, startedAt, code, decision.reason, target);
   }
 
   private failed(

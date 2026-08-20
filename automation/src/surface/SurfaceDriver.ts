@@ -103,7 +103,11 @@ export type ActFailureCode =
   | 'target_not_found'
   | 'target_not_actionable'
   | 'timeout'
-  | 'navigation_failed';
+  | 'navigation_failed'
+  /** The action itself, or its destination, is disallowed outright — never retry it. */
+  | 'policy_blocked'
+  /** The action is legitimate but irreversible-leaning; only a human may authorize it. */
+  | 'policy_intervention_required';
 
 export interface ActFailure {
   readonly code: ActFailureCode;
