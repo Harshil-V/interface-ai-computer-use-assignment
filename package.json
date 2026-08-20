@@ -1,0 +1,13 @@
+{
+  "name": "interface-ai-computer-use-assignment",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "mock-console"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace mock-console",
+    "build": "npm run build --workspace mock-console",
+    "test": "npm run test --workspace mock-console"
+  }
+}
