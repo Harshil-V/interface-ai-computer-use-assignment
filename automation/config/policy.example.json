@@ -16,6 +16,7 @@
   },
   "limits": {
     "maxStepsPerRun": 40,
+    "maxRunDurationMs": 300000,
     "actionTimeoutMs": 10000,
     "navigationTimeoutMs": 20000,
     "maxObservationNodes": 200,

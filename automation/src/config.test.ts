@@ -14,6 +14,7 @@ const validPolicy = {
   },
   limits: {
     maxStepsPerRun: 40,
+    maxRunDurationMs: 300_000,
     actionTimeoutMs: 10_000,
     navigationTimeoutMs: 20_000,
     maxObservationNodes: 200,
@@ -31,6 +32,7 @@ describe('parsePolicy', () => {
 
     expect(policy.allowedOrigins).toEqual(['http://localhost:5173']);
     expect(policy.limits.maxStepsPerRun).toBe(40);
+    expect(policy.limits.maxRunDurationMs).toBe(300_000);
   });
 
   it('accepts the policy example shipped with the repo', () => {
@@ -117,6 +119,12 @@ describe('parsePolicy', () => {
     expect(() => parsePolicy(withPolicy({ limits }), 'test')).toThrow(ConfigError);
   });
 
+  it('rejects a non-positive wall-clock run duration', () => {
+    const limits = { ...validPolicy.limits, maxRunDurationMs: 0 };
+
+    expect(() => parsePolicy(withPolicy({ limits }), 'test')).toThrow(ConfigError);
+  });
+
   it('rejects a fractional timeout', () => {
     const limits = { ...validPolicy.limits, actionTimeoutMs: 1.5 };
 
@@ -135,6 +143,14 @@ describe('parseEnvironment', () => {
 
   it('reads an api key that is present', () => {
     expect(parseEnvironment({ ANTHROPIC_API_KEY: 'sk-test' }).anthropicApiKey).toBe('sk-test');
+  });
+
+  it('defaults the anthropic model to claude-sonnet-5', () => {
+    expect(parseEnvironment({}).anthropicModel).toBe('claude-sonnet-5');
+  });
+
+  it('overrides the anthropic model when set', () => {
+    expect(parseEnvironment({ ANTHROPIC_MODEL: 'claude-opus-5' }).anthropicModel).toBe('claude-opus-5');
   });
 
   it('runs headed by default, because runs are meant to be watchable and handed to a human', () => {

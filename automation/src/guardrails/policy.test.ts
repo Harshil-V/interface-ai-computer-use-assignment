@@ -14,6 +14,7 @@ const basePolicy: Policy = {
   },
   limits: {
     maxStepsPerRun: 40,
+    maxRunDurationMs: 300_000,
     actionTimeoutMs: 10_000,
     navigationTimeoutMs: 20_000,
     maxObservationNodes: 200,

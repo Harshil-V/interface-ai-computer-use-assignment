@@ -15,6 +15,12 @@ const DOTENV_PATH = path.join(PACKAGE_ROOT, '.env');
 const TRUE_LITERALS: readonly string[] = ['true', '1', 'yes'];
 const FALSE_LITERALS: readonly string[] = ['false', '0', 'no'];
 
+/**
+ * A UI-navigation tool-calling task does not need Opus-tier reasoning; Sonnet is the
+ * cost/quality default. `ANTHROPIC_MODEL` overrides it without a code change.
+ */
+const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-5';
+
 /** Configuration failures are unrecoverable by design: stop before touching a surface. */
 export class ConfigError extends Error {
   override readonly name = 'ConfigError';
@@ -57,6 +63,8 @@ const policySchema = z.object({
   riskClassification: riskClassificationSchema,
   limits: z.object({
     maxStepsPerRun: positiveIntSchema,
+    /** Wall-clock budget for an entire discovery run, independent of the step count. */
+    maxRunDurationMs: positiveIntSchema,
     actionTimeoutMs: positiveIntSchema,
     navigationTimeoutMs: positiveIntSchema,
     maxObservationNodes: positiveIntSchema,
@@ -67,8 +75,8 @@ const policySchema = z.object({
 export type Policy = z.infer<typeof policySchema>;
 
 export interface EnvironmentConfig {
-  /** Reserved for the discovery agent; unused by the perception layer. */
   readonly anthropicApiKey: string | null;
+  readonly anthropicModel: string;
   readonly headless: boolean;
   readonly policyPath: string | null;
   readonly evidenceDir: string | null;
@@ -80,6 +88,7 @@ export interface AutomationConfig {
   readonly evidenceDir: string;
   readonly headless: boolean;
   readonly anthropicApiKey: string | null;
+  readonly anthropicModel: string;
 }
 
 export interface LoadConfigOptions {
@@ -100,6 +109,7 @@ export function parsePolicy(raw: unknown, source: string): Policy {
 export function parseEnvironment(source: NodeJS.ProcessEnv): EnvironmentConfig {
   return {
     anthropicApiKey: readOptional(source.ANTHROPIC_API_KEY),
+    anthropicModel: readOptional(source.ANTHROPIC_MODEL) ?? DEFAULT_ANTHROPIC_MODEL,
     headless: readBoolean(source.AUTOMATION_HEADLESS, 'AUTOMATION_HEADLESS', false),
     policyPath: readOptional(source.AUTOMATION_POLICY_PATH),
     evidenceDir: readOptional(source.AUTOMATION_EVIDENCE_DIR),
@@ -124,6 +134,7 @@ export function loadConfig(options: LoadConfigOptions = {}): AutomationConfig {
     evidenceDir: path.resolve(options.evidenceDir ?? environment.evidenceDir ?? DEFAULT_EVIDENCE_DIR),
     headless: options.headless ?? environment.headless,
     anthropicApiKey: environment.anthropicApiKey,
+    anthropicModel: environment.anthropicModel,
   };
 }
 
