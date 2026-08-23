@@ -134,16 +134,22 @@ export function buildSnapshot(
 }
 
 /**
- * Numbers same-role, same-identity nodes over the *raw* tree rather than the filtered
- * one: a replay resolves its locator against the live surface, which still contains
- * the nodes we chose not to show.
+ * Numbers same-role, same-name nodes over the *raw* tree rather than the filtered one:
+ * a replay resolves its locator against the live surface, which still contains the
+ * nodes we chose not to show.
+ *
+ * Bucketed by role + accessible name only, matching exactly what `PlaywrightWebDriver`'s
+ * `byRole()` disambiguates on (`getByRole(role, { name })`). Text content must NOT factor
+ * into the key: several unnamed same-role siblings (e.g. a `<dl>`'s `<dd>` elements) can
+ * have distinct text, but `getByRole` still returns them as one ordered collection, so
+ * they must share one ordinal sequence rather than each independently landing on `0`.
  */
 function assignOrdinals(raw: readonly RawAccessibilityNode[]): Map<RawAccessibilityNode, number> {
   const ordinals = new Map<RawAccessibilityNode, number>();
   const seen = new Map<string, number>();
 
   const visit = (node: RawAccessibilityNode): void => {
-    const key = `${node.role}${ORDINAL_KEY_SEPARATOR}${identityOf(node)}`;
+    const key = `${node.role}${ORDINAL_KEY_SEPARATOR}${normalise(node.name)}`;
     const next = seen.get(key) ?? 0;
     ordinals.set(node, next);
     seen.set(key, next + 1);
@@ -152,10 +158,6 @@ function assignOrdinals(raw: readonly RawAccessibilityNode[]): Map<RawAccessibil
 
   raw.forEach(visit);
   return ordinals;
-}
-
-function identityOf(node: RawAccessibilityNode): string {
-  return normalise(node.name !== '' ? node.name : node.text);
 }
 
 function keepNode(

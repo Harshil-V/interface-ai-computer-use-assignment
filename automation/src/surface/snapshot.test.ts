@@ -200,6 +200,20 @@ describe('buildSnapshot target descriptors', () => {
     expect(result.targets.get('n2')?.ordinal).toBe(1);
   });
 
+  it('numbers unnamed same-role siblings by position, not by their differing text', () => {
+    // Mirrors a <dl> with two <dd> elements: both `definition`-role with no accessible
+    // name, but different rendered text. `getByRole('definition')` (what a replay
+    // actually resolves against) can only disambiguate by role + name, so both must
+    // land in one ordinal sequence rather than each independently computing ordinal 0.
+    const result = build([
+      raw('definition', { text: 'Jordan Ellis' }),
+      raw('definition', { text: '$1,240.55' }),
+    ]);
+
+    expect(result.targets.get('n1')?.ordinal).toBe(0);
+    expect(result.targets.get('n2')?.ordinal).toBe(1);
+  });
+
   it('counts filtered-out nodes when numbering, because the live surface still has them', () => {
     const result = build([
       raw('region', {
