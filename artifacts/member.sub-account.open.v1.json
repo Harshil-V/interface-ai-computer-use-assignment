@@ -1,0 +1,315 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "member.sub-account.open",
+  "version": 1,
+  "title": "Open a sub-account for a member",
+  "target": {
+    "app": "core-banking-console",
+    "tenant": "base",
+    "entryUrl": "http://localhost:5173/"
+  },
+  "surface": {
+    "kind": "web",
+    "perception": "accessibility-tree"
+  },
+  "inputs": [
+    {
+      "name": "memberId",
+      "type": "string",
+      "required": true,
+      "example": "12345",
+      "sensitivity": "quasi-identifier"
+    },
+    {
+      "name": "accountType",
+      "type": "string",
+      "required": true,
+      "example": "Savings",
+      "sensitivity": "low"
+    },
+    {
+      "name": "initialDepositAmount",
+      "type": "string",
+      "required": true,
+      "example": "100",
+      "sensitivity": "sensitive"
+    },
+    {
+      "name": "nickname",
+      "type": "string",
+      "required": true,
+      "example": "New Savings",
+      "sensitivity": "low"
+    }
+  ],
+  "outputs": [],
+  "steps": [
+    {
+      "id": "s1",
+      "effect": "safe",
+      "action": "fill",
+      "target": {
+        "role": "textbox",
+        "name": "Member ID",
+        "nameMatch": "exact",
+        "within": {
+          "role": "region",
+          "name": "Member lookup"
+        },
+        "ordinal": 0,
+        "fallbacks": [
+          {
+            "strategy": "label",
+            "value": "Member ID"
+          },
+          {
+            "strategy": "text",
+            "value": "Member ID"
+          }
+        ]
+      },
+      "value": {
+        "$input": "memberId"
+      }
+    },
+    {
+      "id": "s2",
+      "effect": "safe",
+      "action": "click",
+      "target": {
+        "role": "button",
+        "name": "Look up member",
+        "nameMatch": "exact",
+        "within": {
+          "role": "region",
+          "name": "Member lookup"
+        },
+        "ordinal": 0,
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "value": "Look up member"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "effect": "safe",
+      "action": "click",
+      "target": {
+        "role": "button",
+        "name": "View details for member {memberId}",
+        "nameMatch": "exact",
+        "within": {
+          "role": "cell",
+          "name": "View details for member {memberId}"
+        },
+        "ordinal": 0,
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "value": "View details for member {memberId}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "effect": "safe",
+      "action": "click",
+      "target": {
+        "role": "button",
+        "name": "Open sub-account",
+        "nameMatch": "exact",
+        "within": {
+          "role": "region",
+          "name": "Member {memberId}"
+        },
+        "ordinal": 0,
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "value": "Open sub-account"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s5",
+      "effect": "safe",
+      "action": "select",
+      "target": {
+        "role": "combobox",
+        "name": "Account type",
+        "nameMatch": "exact",
+        "within": {
+          "role": "region",
+          "name": "Open sub-account for member {memberId}"
+        },
+        "ordinal": 0,
+        "fallbacks": [
+          {
+            "strategy": "label",
+            "value": "Account type"
+          },
+          {
+            "strategy": "text",
+            "value": "Account type"
+          }
+        ]
+      },
+      "value": {
+        "$input": "accountType"
+      }
+    },
+    {
+      "id": "s6",
+      "effect": "safe",
+      "action": "fill",
+      "target": {
+        "role": "textbox",
+        "name": "Initial deposit amount (USD)",
+        "nameMatch": "exact",
+        "within": {
+          "role": "region",
+          "name": "Open sub-account for member {memberId}"
+        },
+        "ordinal": 0,
+        "fallbacks": [
+          {
+            "strategy": "label",
+            "value": "Initial deposit amount (USD)"
+          },
+          {
+            "strategy": "text",
+            "value": "Initial deposit amount (USD)"
+          }
+        ]
+      },
+      "value": {
+        "$input": "initialDepositAmount"
+      }
+    },
+    {
+      "id": "s7",
+      "effect": "safe",
+      "action": "fill",
+      "target": {
+        "role": "textbox",
+        "name": "Nickname",
+        "nameMatch": "exact",
+        "within": {
+          "role": "region",
+          "name": "Open sub-account for member {memberId}"
+        },
+        "ordinal": 0,
+        "fallbacks": [
+          {
+            "strategy": "label",
+            "value": "Nickname"
+          },
+          {
+            "strategy": "text",
+            "value": "Nickname"
+          }
+        ]
+      },
+      "value": {
+        "$input": "nickname"
+      }
+    },
+    {
+      "id": "s8",
+      "effect": "safe",
+      "action": "click",
+      "target": {
+        "role": "button",
+        "name": "Continue to confirmation",
+        "nameMatch": "exact",
+        "within": {
+          "role": "region",
+          "name": "Open sub-account for member {memberId}"
+        },
+        "ordinal": 0,
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "value": "Continue to confirmation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s9",
+      "effect": "irreversible",
+      "action": "click",
+      "target": {
+        "role": "button",
+        "name": "Confirm and open sub-account",
+        "nameMatch": "exact",
+        "ordinal": 0,
+        "fallbacks": []
+      }
+    }
+  ],
+  "checkpoint": {
+    "assert": "visible",
+    "target": {
+      "role": "heading",
+      "name": "Sub-account created",
+      "nameMatch": "exact",
+      "ordinal": 0,
+      "fallbacks": []
+    }
+  },
+  "outcomes": [
+    {
+      "id": "member_not_found",
+      "type": "business_outcome",
+      "terminal": true,
+      "when": {
+        "role": "alert",
+        "textMatches": "No member found for ID"
+      }
+    },
+    {
+      "id": "validation_error",
+      "type": "business_outcome",
+      "terminal": true,
+      "when": {
+        "role": "alert",
+        "textMatches": "Member ID is required"
+      }
+    },
+    {
+      "id": "session_expired",
+      "type": "recoverable",
+      "when": {
+        "role": "alert",
+        "textMatches": "Session expired"
+      },
+      "recovery": {
+        "action": "click",
+        "target": {
+          "role": "button",
+          "name": "Start a new session",
+          "nameMatch": "exact",
+          "ordinal": 0,
+          "fallbacks": []
+        },
+        "thenRestartFromStep": "s1",
+        "maxAttempts": 1
+      }
+    }
+  ],
+  "provenance": {
+    "discoveredAt": "2026-08-24T03:17:07.921Z",
+    "model": "claude-sonnet-5",
+    "discoveryRunId": "20260824T031637Z-g46a6e",
+    "evidencePath": "evidence/20260824T031637Z-g46a6e/"
+  },
+  "approval": {
+    "state": "draft"
+  }
+}
