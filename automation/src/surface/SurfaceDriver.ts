@@ -107,7 +107,9 @@ export type ActFailureCode =
   /** The action itself, or its destination, is disallowed outright — never retry it. */
   | 'policy_blocked'
   /** The action is legitimate but irreversible-leaning; only a human may authorize it. */
-  | 'policy_intervention_required';
+  | 'policy_intervention_required'
+  /** A human currently holds the control lease; automation is structurally unable to act until it is released. */
+  | 'lease_held';
 
 export interface ActFailure {
   readonly code: ActFailureCode;

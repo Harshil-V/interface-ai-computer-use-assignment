@@ -1,6 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright';
 import type { Policy } from '../config.ts';
 import { checkAction, type GuardrailDecision } from '../guardrails/policy.ts';
+import type { ControlLease } from '../hitl/ControlLease.ts';
 import { parseAriaSnapshot } from './ariaYaml.ts';
 import { buildSnapshot, DEFAULT_SNAPSHOT_LIMITS, type SnapshotLimits } from './snapshot.ts';
 import type {
@@ -43,6 +44,8 @@ export interface PlaywrightWebDriverOptions {
   readonly actionTimeoutMs: number;
   readonly navigationTimeoutMs: number;
   readonly policy: Policy;
+  /** Checked before every `act()`, alongside the guardrail — required, not optional, so no driver can be built without it. */
+  readonly lease: ControlLease;
   readonly snapshotLimits?: SnapshotLimits;
   readonly screenshotStore?: ScreenshotStore | null;
 }
@@ -106,22 +109,31 @@ export class PlaywrightWebDriver implements SurfaceDriver, SurfaceSession {
   }
 
   /**
-   * Guardrails run first and unconditionally, before any page interaction, so nothing
-   * that holds this driver — discovery, replay, or a future caller — can reach the page
-   * without passing the same check.
+   * The lease check and the guardrail check both run first and unconditionally,
+   * before any page interaction, so nothing that holds this driver — discovery,
+   * replay, or a future caller — can reach the page without passing both. The lease
+   * goes first: while a human holds it, *no* action is legitimate regardless of what
+   * the guardrail would otherwise say about it.
    *
    * The plan's prose describes blocked actions as throwing a typed `PolicyViolation`.
    * This driver returns a normal `ActResult` with `failure.code` set to
-   * `'policy_blocked'` or `'policy_intervention_required'` instead: every other failure
-   * mode here (`unknown_ref`, `timeout`, ...) already reports through that same typed
-   * result, and a thrown exception would be the one caller-visible divergence from that
-   * contract — forcing discovery and replay to special-case guardrail failures instead
-   * of handling one uniform shape. The two outcomes stay distinguishable by failure
-   * code precisely so Milestone 7 can route `policy_intervention_required` to the HITL
-   * path without redesigning this result.
+   * `'lease_held'`, `'policy_blocked'`, or `'policy_intervention_required'` instead:
+   * every other failure mode here (`unknown_ref`, `timeout`, ...) already reports
+   * through that same typed result, and a thrown exception would be the one
+   * caller-visible divergence from that contract — forcing discovery and replay to
+   * special-case guardrail/lease failures instead of handling one uniform shape.
+   * These outcomes stay distinguishable by failure code precisely so the HITL path
+   * can route `policy_intervention_required` (and a discovery `stuck`) to an
+   * intervention without redesigning this result.
    */
   async act(action: Action): Promise<ActResult> {
     const startedAt = Date.now();
+
+    try {
+      this.options.lease.assertAutomationMayAct();
+    } catch (cause) {
+      return this.failed(action.kind, startedAt, 'lease_held', messageOf(cause));
+    }
 
     if (action.kind === 'navigate') {
       const decision = checkAction(action, this.options.policy);
@@ -190,6 +202,18 @@ export class PlaywrightWebDriver implements SurfaceDriver, SurfaceSession {
     const ref = `${RESOLVED_REF_PREFIX}${this.resolvedRefCount}`;
     this.targets.set(ref, target);
     return { ref, role: target.role, name: target.name };
+  }
+
+  /**
+   * Escape hatch for the human side of a handoff. A real operator drives the
+   * already-open browser window directly — with a mouse, not by calling this
+   * driver's `act()` — so there is nothing to guard here: this getter exists only so
+   * a demo script can stand in for that operator programmatically. Bypassing the
+   * guardrail and the lease is *correct* for this one caller; nothing under
+   * `hitl/` or `replay/` may use it, and nothing else in this codebase does.
+   */
+  get liveOperatorPage(): Page {
+    return this.page;
   }
 
   async close(): Promise<void> {

@@ -32,7 +32,7 @@ const DEFAULT_EXTRACT_SENSITIVITY: SensitivityClass = 'sensitive';
 
 export type RunMode = 'snapshot' | 'discovery' | 'replay';
 
-export type StepType = 'navigate' | 'perceive' | 'act' | 'note';
+export type StepType = 'navigate' | 'perceive' | 'act' | 'note' | 'intervention';
 
 export interface StepRecord {
   readonly type: StepType;
@@ -46,6 +46,8 @@ export interface StepRecord {
   readonly url?: string;
   readonly screenshotPath?: string;
   readonly snapshotPath?: string;
+  /** Free-text note an operator submitted with a hand-back; run through the high-risk redaction sweep before persisting. */
+  readonly operatorNote?: string;
 }
 
 export interface RunOutcome {
@@ -72,6 +74,7 @@ interface PersistedStep {
   readonly url?: string;
   readonly screenshot?: string;
   readonly snapshot?: string;
+  readonly operatorNote?: string;
 }
 
 /**
@@ -138,6 +141,7 @@ export class EvidenceRecorder implements ScreenshotStore {
         ? {}
         : { screenshot: this.relative(step.screenshotPath) }),
       ...(step.snapshotPath === undefined ? {} : { snapshot: this.relative(step.snapshotPath) }),
+      ...(step.operatorNote === undefined ? {} : { operatorNote: redactText(step.operatorNote) }),
     });
   }
 
@@ -167,6 +171,17 @@ export class EvidenceRecorder implements ScreenshotStore {
       nodes: observation.nodes.map((node) => this.redactNode(node)),
     };
     await writeFile(filePath, `${JSON.stringify(redacted, null, JSON_INDENT)}\n`, 'utf8');
+    return filePath;
+  }
+
+  /** Persists an arbitrary JSON document — e.g. a hand-back before/after diff — alongside the numbered snapshots. */
+  async writeJson(data: unknown, label: string): Promise<string> {
+    const filePath = path.join(
+      this.runDir,
+      SNAPSHOTS_DIR,
+      `${this.nextPrefix(SNAPSHOTS_DIR)}-${label}.json`,
+    );
+    await writeFile(filePath, `${JSON.stringify(data, null, JSON_INDENT)}\n`, 'utf8');
     return filePath;
   }
 
