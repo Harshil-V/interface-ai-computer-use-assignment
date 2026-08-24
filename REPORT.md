@@ -34,7 +34,8 @@ are inferred from it. Both committed artifacts are real instances;
   `version` distinguishes capability revisions. Evolvability without a database.
 - **`target.{app,tenant,entryUrl}`, `surface.{kind,perception}`** — `tenant` is the extension
   point for multi-tenant reuse (§4); `surface` records which driver family produced the
-  artifact, so a mismatched driver fails loudly.
+  artifact, for a reviewer to check by eye. Nothing reads it at runtime yet — a mismatched-driver
+  check would live here.
 - **`inputs[]` / `outputs[]` with `sensitivity`** — the typed call contract. Per-field
   sensitivity drives redaction (§6), so redaction never depends on a field-name blocklist.
 - **`steps[]`**, discriminated on `action`, each with `effect: "safe" | "irreversible"` —
@@ -77,9 +78,10 @@ run behind it (`evidence/20260824T031637Z-g46a6e/`) is real and unmodified.
 **The LLM never authors a locator.** Every discovery tool takes a system-assigned `ref`; a
 selector is never part of the tool surface. After a successful action the system derives the
 `TargetDescriptor` from the node that demonstrably worked, so every locator comes from an
-element that actually resolved on the live page. `PlaywrightWebDriver.locate` tries the exact
-role-plus-name (scoped by `within`) first, then each declared fallback in order, stopping at
-the first match.
+element that actually resolved on the live page. `PlaywrightWebDriver.locate` tries three things
+in order: the page-wide role-plus-name match at the recorded `ordinal`; then, if the descriptor
+declares a `within` scope, the same match inside that scope, taking the first hit; then each
+declared fallback in order. It stops at the first match.
 
 **Outcomes are checked continuously.** `ReplayEngine.runReplay` checks `artifact.outcomes[]`
 against the observation after **every** step, so a business or recoverable condition is
@@ -206,11 +208,16 @@ account opened or money moved with no UI-level undo. The only escape hatch is an
 per-run, human-granted hand-back. No config flag silently disables the check.
 
 **Redaction happens at the persistence boundary, not the call boundary.** `EvidenceRecorder`
-masks every persisted step value, extracted value, and accessibility-snapshot text, driven by
-the declared sensitivity plus a static sweep for SSN-, bearer-token-, and card-number-shaped
-strings even when nothing was explicitly classified. The in-process return value to the caller
-stays unmasked, because an agent invoking this capability legitimately needs the real balance.
-Only what is written to disk is masked.
+masks two things by declared sensitivity: the `value` on a `fill`/`select` step (sensitivity
+from `artifact.inputs[]`) and the `extracted` value on an extract step (from
+`artifact.outputs[]`, defaulting to `sensitive`). The in-process return value stays unmasked,
+because an agent invoking this capability legitimately needs the real balance.
+
+Everything else persisted gets less. Accessibility snapshots and the operator's hand-back note
+pass only through a static sweep for SSN-, bearer-token-, and card-number-shaped strings, which
+nothing Part A renders ever matches — so a displayed balance sits in snapshot text in the clear.
+The step `reason`, the run `goal`, the hand-back diff, and the saved artifact are not redacted
+at all. Wiring declared sensitivity through to snapshot text is unfinished.
 
 **Screenshots are not redacted, only text and logs are.** A screenshot can show a balance in
 the clear. Pixel-level redaction was judged disproportionate for this exercise.
@@ -235,6 +242,9 @@ the clear. Pixel-level redaction was judged disproportionate for this exercise.
 - **No desktop driver and no real multi-tenant infrastructure** — out of scope per the brief.
   §4 gives the design answer and names the one untested weakness.
 - **Pixel-level screenshot redaction** — disclosed in §6.
+- **Declared sensitivity does not reach snapshot text** (§6) — accessibility snapshots and the
+  hand-back note fall back to a static pattern sweep instead, and nothing Part A renders matches
+  those patterns.
 - **LLM-in-replay ("assisted fallback")** was never built and is structurally unreachable:
   `ReplayEngine.ts` has no Anthropic SDK import in scope, so the shortcut brief §3.3 forbids
   cannot be reached.

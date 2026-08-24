@@ -45,8 +45,8 @@ Then open `automation/.env` and set `ANTHROPIC_API_KEY` to your own Anthropic AP
 commit a real key. `.env` is gitignored; only `.env.example` is committed, and it contains
 the key name with no value.
 
-`ANTHROPIC_API_KEY` is needed only for `npm run discover`. Every other command makes zero LLM
-calls and works without it.
+`ANTHROPIC_API_KEY` is needed for `npm run discover` and for `scripts/demo-discovery-stuck.ts`.
+Every other command makes zero LLM calls and works without it.
 
 ## The demo path
 
@@ -83,7 +83,7 @@ appended by hand rather than discovered ([`REPORT.md`](REPORT.md) §2).
 
 ### 2. Replay it deterministically: parameterization and a business outcome
 
-No LLM is called anywhere in this step. `replay` never imports an LLM client.
+No LLM is called anywhere in this step. `ReplayEngine` never imports an LLM client.
 
 ```bash
 # Same artifact, two different inputs, two different real balances:

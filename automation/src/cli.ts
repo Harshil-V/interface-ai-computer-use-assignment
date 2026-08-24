@@ -41,8 +41,8 @@ Commands:
     artifact and writes a full evidence folder.
 
   ${COMMAND_REPLAY} --artifact <path-or-id> [--input name=value ...] [--url <entryUrl>]
-    Deterministically replays a frozen capability artifact. Zero LLM spend — this
-    command never imports an LLM client. <path-or-id> is either a path to an artifact
+    Deterministically replays a frozen capability artifact. Zero LLM spend — the
+    ReplayEngine never imports an LLM client. <path-or-id> is either a path to an artifact
     JSON file, or a bare capability id (optionally "id@version", defaulting to
     version ${DEFAULT_ARTIFACT_VERSION}) resolved under artifacts/. Repeat --input once per
     declared input. --url overrides the artifact's target.entryUrl, e.g. to append
