@@ -5,8 +5,9 @@ as a reusable **capability artifact**. From then on, a **replay engine** runs th
 again with new inputs, without calling an LLM at all.
 
 Every replay ends in one of four outcomes: success, a business outcome (such as "member not
-found"), a recoverable error it retries on its own, or a hard failure. Anything it can't
-safely finish alone is escalated to a human operator.
+found"), an escalation to a human operator for anything it can't safely finish alone, or a
+failure. A recoverable error is retried on its own first, and becomes a failure only once its
+declared retry policy is exhausted.
 
 ## The two committed capabilities
 

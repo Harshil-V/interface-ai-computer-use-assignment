@@ -1,5 +1,11 @@
 # Working Notes — Computer-Use Automation System
 
+**Superseded by [`REPORT.md`](../REPORT.md).** These are planning notes from 2026-08-13, kept
+because `mock-console/`'s sources cite §3 for its fixture and session-model rationale, which
+still matches what shipped. Where the rest of this document disagrees with `REPORT.md` — the
+orchestrator, the redaction stance, the locator shape — `REPORT.md` describes what was actually
+built.
+
 **Source brief:** Assignment A — Computer-Use Automation System  
 **Repo:** `interface-ai-computer-use-assignment`  
 **Git home:** this checkout (public remote intended: `Harshil-V/interface-ai-computer-use-assignment`)  

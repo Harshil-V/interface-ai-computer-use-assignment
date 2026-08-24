@@ -216,8 +216,19 @@ because an agent invoking this capability legitimately needs the real balance.
 Everything else persisted gets less. Accessibility snapshots and the operator's hand-back note
 pass only through a static sweep for SSN-, bearer-token-, and card-number-shaped strings, which
 nothing Part A renders ever matches — so a displayed balance sits in snapshot text in the clear.
-The step `reason`, the run `goal`, the hand-back diff, and the saved artifact are not redacted
-at all. Wiring declared sensitivity through to snapshot text is unfinished.
+The step `reason`, the run `goal`, the recorded page `url`, the `code` and `message` on a failed
+step, the run's `outcome.detail`, the hand-back diff, and the saved artifact are not redacted at
+all. `outcome.detail` is assembled in `cli.ts` from the matched outcome's own text, the
+escalation reason, or the failure's `expected` and `observed` strings, so that text reaches the
+run log verbatim: `evidence/20260824T004048Z-j3wtux/run.json` records "No member found for ID
+99999." Wiring declared sensitivity through to snapshot text is unfinished.
+
+**The run log overstates its own redaction.** `EvidenceRecorder.finish` writes a hardcoded
+`redaction.appliedTo` array that lists "persisted accessibility snapshots," the same claim the
+paragraph above retracts, and a `classifiedValueCount` that is `0` in every run because
+`classify()` has no production caller. All eight committed runs carry that wording. The
+paragraph above is the accurate account; the field was left as recorded rather than rewritten
+after the fact.
 
 **Screenshots are not redacted, only text and logs are.** A screenshot can show a balance in
 the clear. Pixel-level redaction was judged disproportionate for this exercise.
