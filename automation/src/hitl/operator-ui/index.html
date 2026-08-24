@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Automation operator</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+  h1 { font-size: 1.25rem; }
+  dl { display: grid; grid-template-columns: 9rem 1fr; gap: 0.25rem 1rem; }
+  dt { font-weight: 600; color: #555; }
+  dd { margin: 0; }
+  img { max-width: 100%; border: 1px solid #ccc; margin-top: 0.5rem; }
+  button { padding: 0.5rem 1rem; margin-right: 0.5rem; cursor: pointer; }
+  textarea { width: 100%; min-height: 4rem; margin-top: 0.5rem; font: inherit; }
+  #empty { color: #777; }
+  #status { font-weight: 600; }
+  .lease-automation { color: #2a7a2a; }
+  .lease-paused { color: #a06a00; }
+  .lease-human { color: #a02020; }
+</style>
+</head>
+<body>
+<h1>Automation operator</h1>
+<p>Lease owner: <span id="lease" class="status"></span></p>
+
+<div id="empty">No active intervention. Polling…</div>
+
+<div id="intervention" hidden>
+  <dl>
+    <dt>Capability</dt><dd id="capabilityId"></dd>
+    <dt>Goal</dt><dd id="goal"></dd>
+    <dt>Step</dt><dd id="stepId"></dd>
+    <dt>Trigger</dt><dd id="trigger"></dd>
+    <dt>Stop reason</dt><dd id="stopReason"></dd>
+    <dt>Status</dt><dd id="status"></dd>
+  </dl>
+  <img id="screenshot" alt="Last known state of the page" hidden />
+
+  <div id="actions">
+    <button id="takeControl" type="button">Take control</button>
+  </div>
+
+  <div id="handBack" hidden>
+    <p>You now hold the control lease. Act directly on the already-open browser window, then hand back:</p>
+    <textarea id="note" placeholder="Operator note (what you did, why)"></textarea>
+    <div>
+      <button id="resume" type="button">Hand back — resume</button>
+      <button id="abandon" type="button">Hand back — abandon</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const POLL_INTERVAL_MS = 1000;
+  let currentInterventionId = null;
+
+  async function poll() {
+    try {
+      const response = await fetch('/api/intervention');
+      const data = await response.json();
+      render(data);
+    } catch {
+      // Transient fetch failure; the next poll tick will retry.
+    }
+  }
+
+  function render(data) {
+    document.getElementById('lease').textContent = data.leaseOwner;
+    document.getElementById('lease').className = `status lease-${data.leaseOwner}`;
+
+    const empty = document.getElementById('empty');
+    const panel = document.getElementById('intervention');
+
+    if (data.intervention === null) {
+      empty.hidden = false;
+      panel.hidden = true;
+      currentInterventionId = null;
+      return;
+    }
+
+    empty.hidden = true;
+    panel.hidden = false;
+    currentInterventionId = data.intervention.interventionId;
+
+    document.getElementById('capabilityId').textContent = data.intervention.capabilityId;
+    document.getElementById('goal').textContent = data.intervention.goal;
+    document.getElementById('stepId').textContent = data.intervention.stepId;
+    document.getElementById('trigger').textContent = data.intervention.trigger;
+    document.getElementById('stopReason').textContent = data.intervention.stopReason;
+    document.getElementById('status').textContent = data.intervention.status;
+
+    const screenshot = document.getElementById('screenshot');
+    if (data.screenshotUrl) {
+      screenshot.src = data.screenshotUrl;
+      screenshot.hidden = false;
+    } else {
+      screenshot.hidden = true;
+    }
+
+    const takeControlVisible = data.intervention.status === 'open';
+    document.getElementById('actions').hidden = !takeControlVisible;
+    document.getElementById('handBack').hidden = data.intervention.status !== 'in_progress';
+  }
+
+  async function postJson(path, body) {
+    const response = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      throw new Error(detail.error || `${path} failed with ${response.status}`);
+    }
+    return response.json();
+  }
+
+  document.getElementById('takeControl').addEventListener('click', async () => {
+    try {
+      await postJson('/api/take-control', { interventionId: currentInterventionId });
+    } catch (error) {
+      alert(error.message);
+    }
+    await poll();
+  });
+
+  function handBack(resolution) {
+    return async () => {
+      const note = document.getElementById('note').value;
+      try {
+        await postJson('/api/hand-back', { interventionId: currentInterventionId, resolution, note });
+      } catch (error) {
+        alert(error.message);
+      }
+      document.getElementById('note').value = '';
+      await poll();
+    };
+  }
+
+  document.getElementById('resume').addEventListener('click', handBack('resumed'));
+  document.getElementById('abandon').addEventListener('click', handBack('abandoned'));
+
+  poll();
+  setInterval(poll, POLL_INTERVAL_MS);
+</script>
+</body>
+</html>

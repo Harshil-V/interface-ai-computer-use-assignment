@@ -1,6 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Policy } from '../config.ts';
 import type { EvidenceRecorder, StepType } from '../evidence/EvidenceRecorder.ts';
+import type { ControlLease } from '../hitl/ControlLease.ts';
+import { raiseInterventionAndAwaitHandBack } from '../hitl/escalation.ts';
+import type { InterventionResolution, InterventionStore } from '../hitl/interventions.ts';
 import type { Action, ActResult, SurfaceDriver, TargetDescriptor } from '../surface/SurfaceDriver.ts';
 import { buildSystemPrompt } from './prompt.ts';
 import { DISCOVERY_TOOLS, dispatchTool, renderObservationForModel, type ToolDispatch } from './tools.ts';
@@ -31,6 +34,14 @@ export interface DiscoveryOutcome {
   readonly steps: number;
   readonly groundedActions: readonly GroundedAction[];
   readonly outputs: Readonly<Record<string, string>>;
+  /** Present only when `stopReason === 'stuck'` and the resulting intervention has been resolved one way or the other. */
+  readonly interventionId?: string;
+  readonly escalationResolution?: InterventionResolution;
+}
+
+export interface DiscoveryHitlContext {
+  readonly lease: ControlLease;
+  readonly interventions: InterventionStore;
 }
 
 export interface DiscoveryOptions {
@@ -40,6 +51,8 @@ export interface DiscoveryOptions {
   readonly policy: Policy;
   readonly anthropicApiKey: string;
   readonly model: string;
+  /** `stuck` routes into the same intervention path a guardrail block uses during replay. */
+  readonly hitl: DiscoveryHitlContext;
 }
 
 /**
@@ -94,6 +107,9 @@ export async function runDiscovery(options: DiscoveryOptions): Promise<Discovery
     const ctx: StepContext = {
       driver: options.driver,
       recorder: options.recorder,
+      runId: options.recorder.runId,
+      goal: options.goal,
+      hitl: options.hitl,
       step,
       rationale,
       groundedActions,
@@ -117,6 +133,8 @@ export async function runDiscovery(options: DiscoveryOptions): Promise<Discovery
         outputs,
         ...(stop.summary === undefined ? {} : { summary: stop.summary }),
         ...(stop.stuckReason === undefined ? {} : { stuckReason: stop.stuckReason }),
+        ...(stop.interventionId === undefined ? {} : { interventionId: stop.interventionId }),
+        ...(stop.escalationResolution === undefined ? {} : { escalationResolution: stop.escalationResolution }),
       };
     }
   }
@@ -127,6 +145,9 @@ export async function runDiscovery(options: DiscoveryOptions): Promise<Discovery
 interface StepContext {
   readonly driver: SurfaceDriver;
   readonly recorder: EvidenceRecorder;
+  readonly runId: string;
+  readonly goal: string;
+  readonly hitl: DiscoveryHitlContext;
   readonly step: number;
   readonly rationale: string;
   /** Mutated in place: the grounded log and outputs accumulate across the whole run. */
@@ -138,6 +159,8 @@ interface DiscoveryStop {
   readonly reason: 'done' | 'stuck';
   readonly summary?: string;
   readonly stuckReason?: string;
+  readonly interventionId?: string;
+  readonly escalationResolution?: InterventionResolution;
 }
 
 async function handleToolUseBlock(
@@ -163,10 +186,9 @@ async function handleToolUseBlock(
         stop: { reason: 'done', summary: dispatch.summary },
       };
     case 'stuck':
-      ctx.recorder.recordStep({ type: 'note', reason: ctx.rationale, outcome: 'failed' });
       return {
-        resultBlock: toolResult(block.id, 'Stuck condition acknowledged.'),
-        stop: { reason: 'stuck', stuckReason: dispatch.reason },
+        resultBlock: toolResult(block.id, 'Stuck condition acknowledged; escalated to a human operator.'),
+        stop: await handleStuck(dispatch, ctx),
       };
     case 'action':
       return { resultBlock: handleAction(dispatch, block.id, ctx) };
@@ -188,6 +210,43 @@ async function handlePerceive(
     ...(dispatch.observation.screenshotPath === null ? {} : { screenshotPath: dispatch.observation.screenshotPath }),
   });
   return toolResult(toolUseId, renderObservationForModel(dispatch.observation));
+}
+
+/**
+ * Routes a model-declared dead end into the same intervention path a replay
+ * guardrail block uses. `stuck` is already a terminal signal from the model, so —
+ * unlike replay's "resume and continue from the next step" — this run always ends
+ * here regardless of what the operator decides; the resolution is recorded so the
+ * caller can report `escalated`/`resumed` vs `escalated`/`abandoned` accurately.
+ * Continuing the LLM loop after a human intervenes on a `stuck` run is out of scope
+ * by design: only the abandon path is exercised by this project's required demo,
+ * and a stuck-then-resumed discovery run has no well-defined "next turn" to hand
+ * the model without materially more design than this milestone calls for.
+ */
+async function handleStuck(
+  dispatch: Extract<ToolDispatch, { kind: 'stuck' }>,
+  ctx: StepContext,
+): Promise<DiscoveryStop> {
+  ctx.recorder.recordStep({ type: 'note', reason: ctx.rationale, outcome: 'failed' });
+
+  const escalation = await raiseInterventionAndAwaitHandBack(
+    {
+      runId: ctx.runId,
+      capabilityId: '(discovery)',
+      goal: ctx.goal,
+      stepId: `turn-${ctx.step}`,
+      trigger: 'stuck',
+      stopReason: dispatch.reason,
+    },
+    { driver: ctx.driver, recorder: ctx.recorder, lease: ctx.hitl.lease, interventions: ctx.hitl.interventions },
+  );
+
+  return {
+    reason: 'stuck',
+    stuckReason: dispatch.reason,
+    interventionId: escalation.interventionId,
+    escalationResolution: escalation.resolution,
+  };
 }
 
 function handleAction(

@@ -4,8 +4,15 @@ import type { Artifact } from './artifact/schema.ts';
 import { artifactFilePath, loadArtifact, saveArtifact } from './artifact/store.ts';
 import { ConfigError, loadConfig, type AutomationConfig } from './config.ts';
 import { runDiscovery, type DiscoveryOutcome } from './discovery/DiscoveryAgent.ts';
-import { buildDraftArtifact, buildMemberSavingsBalanceArtifact } from './discovery/artifactBuilder.ts';
+import {
+  buildDraftArtifact,
+  buildMemberSavingsBalanceArtifact,
+  buildSubAccountOpenArtifact,
+} from './discovery/artifactBuilder.ts';
 import { EvidenceRecorder, type RunMode, type RunOutcome } from './evidence/EvidenceRecorder.ts';
+import { ControlLease } from './hitl/ControlLease.ts';
+import { InterventionStore } from './hitl/interventions.ts';
+import { startOperatorServer } from './hitl/operatorServer.ts';
 import { runReplay } from './replay/ReplayEngine.ts';
 import type { ReplayResult } from './replay/result.ts';
 import { PlaywrightWebDriver } from './surface/PlaywrightWebDriver.ts';
@@ -13,7 +20,11 @@ import { PlaywrightWebDriver } from './surface/PlaywrightWebDriver.ts';
 const COMMAND_SNAPSHOT = 'snapshot';
 const COMMAND_DISCOVER = 'discover';
 const COMMAND_REPLAY = 'replay';
+const COMMAND_OPERATOR = 'operator';
 const DEFAULT_ARTIFACT_VERSION = 1;
+const DEFAULT_OPERATOR_PORT = 4310;
+const CAPABILITY_SAVINGS_BALANCE_READ = 'member.savings-balance.read';
+const CAPABILITY_SUB_ACCOUNT_OPEN = 'member.sub-account.open';
 const JSON_INDENT = 2;
 const EXIT_FAILURE = 1;
 const EXIT_SUCCESS = 0;
@@ -36,16 +47,30 @@ Commands:
     version ${DEFAULT_ARTIFACT_VERSION}) resolved under artifacts/. Repeat --input once per
     declared input. --url overrides the artifact's target.entryUrl, e.g. to append
     "?forceExpireSession=1" for the session_expired recovery demo.
+    Starts an embedded operator HTTP server (see --operator-port) for the run's own
+    lease/interventions, in case a step requires human intervention.
     Prints the structured ReplayResult to stdout. Exit code: 0 for "success" and
     "business_outcome" (a business outcome is a successful classification, not a
     crash) or an "escalated" run that resumed; non-zero for "failure" and an
     "escalated" run that was abandoned.
+
+  ${COMMAND_OPERATOR} [--operator-port <port>]
+    Starts a standalone operator HTTP server and blocks until Ctrl+C. Has no live
+    automation run attached (each ${COMMAND_REPLAY}/${COMMAND_DISCOVER} run starts its own,
+    sharing that run's own lease and interventions) — useful only to inspect the
+    static operator page in isolation.
 
 Options (all commands):
   --policy <path>        Policy JSON. Defaults to automation/config/policy.json,
                           falling back to policy.example.json.
   --evidence-dir <path>  Evidence root. Defaults to <repo>/evidence.
   --headless             Run without a visible browser window.
+  --operator-port <port> Port for the operator HTTP server. Defaults to ${DEFAULT_OPERATOR_PORT}.
+
+${COMMAND_DISCOVER}-only:
+  --capability <id>      Which frozen capability to build if the goal is met:
+                          "${CAPABILITY_SAVINGS_BALANCE_READ}" (default) or
+                          "${CAPABILITY_SUB_ACCOUNT_OPEN}".
 
 Discovery-only requires ANTHROPIC_API_KEY to be set (see automation/.env.example).
 
@@ -60,6 +85,8 @@ const options = {
   headless: { type: 'boolean' },
   artifact: { type: 'string' },
   input: { type: 'string', multiple: true },
+  'operator-port': { type: 'string' },
+  capability: { type: 'string' },
 } as const;
 
 type CliValues = {
@@ -70,11 +97,17 @@ type CliValues = {
   headless?: boolean;
   artifact?: string;
   input?: string[];
+  'operator-port'?: string;
+  capability?: string;
 };
 
 async function main(argv: readonly string[]): Promise<number> {
   const { values, positionals } = parseArgs({ args: [...argv], options, allowPositionals: true });
   const [command] = positionals;
+
+  if (command === COMMAND_OPERATOR) {
+    return await runOperatorCommand(values);
+  }
 
   if (command === COMMAND_REPLAY) {
     return await runReplayCommand(values);
@@ -115,7 +148,9 @@ async function runSnapshot(url: string, values: CliValues): Promise<number> {
   });
 
   const recorder = await createRecorder(config, 'snapshot', `Perceive ${url}`);
-  const driver = await launchDriver(config, recorder);
+  // A fresh, never-touched lease: `snapshot` only ever perceives/navigates, so there is
+  // no path to an intervention and no operator server to start for it.
+  const driver = await launchDriver(config, recorder, new ControlLease());
 
   try {
     await navigateOrThrow(driver, recorder, url);
@@ -161,7 +196,16 @@ async function runDiscover(goal: string, url: string, values: CliValues): Promis
   }
 
   const recorder = await createRecorder(config, 'discovery', goal);
-  const driver = await launchDriver(config, recorder);
+  const lease = new ControlLease();
+  const interventions = new InterventionStore();
+  const operator = await startOperatorServer({
+    port: parseOperatorPort(values['operator-port']),
+    lease,
+    interventions,
+    evidenceRootDir: config.evidenceDir,
+  });
+  process.stderr.write(`Operator UI (for a "stuck" escalation, if this run hits one): ${operator.url}\n`);
+  const driver = await launchDriver(config, recorder, lease);
 
   try {
     await navigateOrThrow(driver, recorder, url);
@@ -173,6 +217,7 @@ async function runDiscover(goal: string, url: string, values: CliValues): Promis
       policy: config.policy,
       anthropicApiKey: config.anthropicApiKey,
       model: config.anthropicModel,
+      hitl: { lease, interventions },
     });
 
     const artifact = buildDraftArtifact(outcome, {
@@ -185,13 +230,11 @@ async function runDiscover(goal: string, url: string, values: CliValues): Promis
 
     const goalMet = outcome.stopReason === 'done';
     if (goalMet) {
-      freezeAndSaveArtifact(outcome, recorder, config);
+      freezeAndSaveArtifact(outcome, recorder, config, values.capability ?? CAPABILITY_SAVINGS_BALANCE_READ);
     }
 
     const runLogPath = await recorder.finish(
-      goalMet
-        ? { status: 'completed' }
-        : { status: 'failed', detail: describeUnmetGoal(outcome.stopReason, outcome.stuckReason) },
+      goalMet ? { status: 'completed' } : { status: 'failed', detail: describeUnmetGoal(outcome) },
     );
     process.stderr.write(`Evidence written to ${recorder.runDir}\nRun log: ${runLogPath}\n`);
     return goalMet ? 0 : EXIT_FAILURE;
@@ -199,6 +242,7 @@ async function runDiscover(goal: string, url: string, values: CliValues): Promis
     return await failRun(recorder, 'Discovery', error);
   } finally {
     await driver.close();
+    await operator.close();
   }
 }
 
@@ -245,7 +289,16 @@ async function runReplayCommand(values: CliValues): Promise<number> {
     'replay',
     `Replay "${artifact.id}" v${artifact.version} with ${JSON.stringify(params)}.`,
   );
-  const driver = await launchDriver(config, recorder);
+  const lease = new ControlLease();
+  const interventions = new InterventionStore();
+  const operator = await startOperatorServer({
+    port: parseOperatorPort(values['operator-port']),
+    lease,
+    interventions,
+    evidenceRootDir: config.evidenceDir,
+  });
+  process.stderr.write(`Operator UI (for a guardrail escalation, if this run hits one): ${operator.url}\n`);
+  const driver = await launchDriver(config, recorder, lease);
 
   try {
     const result = await runReplay({
@@ -253,6 +306,8 @@ async function runReplayCommand(values: CliValues): Promise<number> {
       params,
       driver,
       recorder,
+      lease,
+      interventions,
       ...(values.url === undefined ? {} : { entryUrl: values.url }),
     });
 
@@ -265,7 +320,51 @@ async function runReplayCommand(values: CliValues): Promise<number> {
     return await failRun(recorder, 'Replay', error);
   } finally {
     await driver.close();
+    await operator.close();
   }
+}
+
+/**
+ * No live run is attached: each `replay`/`discover` invocation is its own process
+ * and starts its own operator server against its own in-process lease and
+ * interventions (per the plan's one-process-per-run concurrency model), so a
+ * standalone instance can never show a real intervention. It exists for symmetry
+ * with the other subcommands and to let the static page be inspected on its own.
+ */
+async function runOperatorCommand(values: CliValues): Promise<number> {
+  const config = loadConfig({
+    policyPath: values.policy,
+    evidenceDir: values['evidence-dir'],
+    headless: values.headless,
+  });
+
+  const handle = await startOperatorServer({
+    port: parseOperatorPort(values['operator-port']),
+    lease: new ControlLease(),
+    interventions: new InterventionStore(),
+    evidenceRootDir: config.evidenceDir,
+  });
+
+  process.stderr.write(
+    `Operator UI listening at ${handle.url}\n` +
+      `No live run is attached to this standalone instance — each ${COMMAND_REPLAY}/${COMMAND_DISCOVER} ` +
+      'run starts its own operator server against its own lease and interventions, and prints its URL. ' +
+      'Press Ctrl+C to stop.\n',
+  );
+
+  return await new Promise<number>((resolve) => {
+    process.once('SIGINT', () => {
+      void handle.close().then(() => resolve(EXIT_SUCCESS));
+    });
+  });
+}
+
+function parseOperatorPort(raw: string | undefined): number {
+  if (raw === undefined) {
+    return DEFAULT_OPERATOR_PORT;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isNaN(parsed) ? DEFAULT_OPERATOR_PORT : parsed;
 }
 
 /** `<path>.json` is a file path; anything else is a capability id, optionally `id@version`. */
@@ -330,23 +429,29 @@ function exitCodeFor(result: ReplayResult): number {
 }
 
 /**
- * `buildMemberSavingsBalanceArtifact` only recognizes this one capability's grounded
- * shape (a fill on "Member ID" plus an extract). A discovery run against some other
- * goal fails this cleanly rather than silently freezing the wrong capability, so a
- * mismatch is reported and the run still exits 0 on `goalMet` — freezing an artifact is
- * this milestone's deliverable, not a requirement of every discovery run.
+ * Each builder only recognizes its own capability's grounded shape (e.g.
+ * `buildMemberSavingsBalanceArtifact` needs a fill on "Member ID" plus an extract).
+ * A discovery run whose `--capability` doesn't match what actually happened fails
+ * this cleanly rather than silently freezing the wrong capability, so a mismatch is
+ * reported and the run still exits 0 on `goalMet` — freezing an artifact is this
+ * milestone's deliverable, not a requirement of every discovery run.
  */
 function freezeAndSaveArtifact(
   outcome: DiscoveryOutcome,
   recorder: EvidenceRecorder,
   config: AutomationConfig,
+  capabilityId: string,
 ): void {
   try {
-    const frozen = buildMemberSavingsBalanceArtifact(outcome, {
+    const meta = {
       discoveryRunId: recorder.runId,
       evidencePath: `evidence/${recorder.runId}/`,
       model: config.anthropicModel,
-    });
+    };
+    const frozen =
+      capabilityId === CAPABILITY_SUB_ACCOUNT_OPEN
+        ? buildSubAccountOpenArtifact(outcome, meta)
+        : buildMemberSavingsBalanceArtifact(outcome, meta);
     const savedPath = saveArtifact(frozen);
     process.stderr.write(`Frozen capability artifact written to ${savedPath}\n`);
   } catch (cause) {
@@ -355,11 +460,15 @@ function freezeAndSaveArtifact(
   }
 }
 
-function describeUnmetGoal(stopReason: string, stuckReason: string | undefined): string {
-  if (stopReason === 'stuck') {
-    return `Model declared itself stuck: ${stuckReason ?? '(no reason given)'}`;
+function describeUnmetGoal(outcome: DiscoveryOutcome): string {
+  if (outcome.stopReason === 'stuck') {
+    const escalation =
+      outcome.interventionId === undefined
+        ? ''
+        : ` (raised intervention "${outcome.interventionId}", resolution: ${outcome.escalationResolution ?? 'unresolved'})`;
+    return `Model declared itself stuck: ${outcome.stuckReason ?? '(no reason given)'}${escalation}`;
   }
-  if (stopReason === 'timeout') {
+  if (outcome.stopReason === 'timeout') {
     return 'Wall-clock timeout elapsed before the goal was met.';
   }
   return 'Step budget exhausted before the goal was met.';
@@ -400,12 +509,17 @@ async function createRecorder(config: AutomationConfig, mode: RunMode, goal: str
   return await EvidenceRecorder.create({ rootDir: config.evidenceDir, mode, goal });
 }
 
-async function launchDriver(config: AutomationConfig, recorder: EvidenceRecorder): Promise<PlaywrightWebDriver> {
+async function launchDriver(
+  config: AutomationConfig,
+  recorder: EvidenceRecorder,
+  lease: ControlLease,
+): Promise<PlaywrightWebDriver> {
   return await PlaywrightWebDriver.launch({
     headless: config.headless,
     actionTimeoutMs: config.policy.limits.actionTimeoutMs,
     navigationTimeoutMs: config.policy.limits.navigationTimeoutMs,
     policy: config.policy,
+    lease,
     snapshotLimits: {
       maxNodes: config.policy.limits.maxObservationNodes,
       maxTextLength: config.policy.limits.maxTextLength,

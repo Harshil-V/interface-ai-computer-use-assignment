@@ -8,6 +8,9 @@ import type {
 } from '../artifact/schema.ts';
 import type { EvidenceRecorder } from '../evidence/EvidenceRecorder.ts';
 import type { SensitivityClass } from '../guardrails/redaction.ts';
+import type { ControlLease } from '../hitl/ControlLease.ts';
+import { raiseInterventionAndAwaitHandBack } from '../hitl/escalation.ts';
+import type { InterventionStore } from '../hitl/interventions.ts';
 import type {
   Action,
   ActResult,
@@ -16,13 +19,15 @@ import type {
   TargetFallback,
 } from '../surface/SurfaceDriver.ts';
 import { matchOutcome } from './outcomes.ts';
-import { businessOutcomeResult, failureResult, successResult, type ReplayResult } from './result.ts';
+import { businessOutcomeResult, escalatedResult, failureResult, successResult, type ReplayResult } from './result.ts';
 
 export interface ReplayOptions {
   readonly artifact: Artifact;
   readonly params: Readonly<Record<string, string>>;
   readonly driver: SurfaceDriver;
   readonly recorder: EvidenceRecorder;
+  readonly lease: ControlLease;
+  readonly interventions: InterventionStore;
   /** Overrides `artifact.target.entryUrl` — the `session_expired` demo needs `?forceExpireSession=1`. */
   readonly entryUrl?: string;
 }
@@ -45,7 +50,7 @@ interface StepAttempt {
  * rather than surfacing later as a confusing downstream failure.
  */
 export async function runReplay(options: ReplayOptions): Promise<ReplayResult> {
-  const { artifact, params, driver, recorder } = options;
+  const { artifact, params, driver, recorder, lease, interventions } = options;
   const entryUrl = options.entryUrl ?? artifact.target.entryUrl;
   const evidencePath = `evidence/${recorder.runId}/`;
 
@@ -75,6 +80,33 @@ export async function runReplay(options: ReplayOptions): Promise<ReplayResult> {
     const step = artifact.steps[stepIndex]!;
     const attempt = await executeStep(step, params, artifact, driver);
     recordStepEvidence(recorder, step, attempt, artifact);
+
+    if (attempt.result.failure?.code === 'policy_intervention_required') {
+      const escalation = await raiseInterventionAndAwaitHandBack(
+        {
+          runId: recorder.runId,
+          capabilityId: artifact.id,
+          goal: artifact.title,
+          stepId: step.id,
+          trigger: 'guardrail',
+          stopReason: attempt.result.failure.message,
+        },
+        { driver, recorder, lease, interventions },
+      );
+
+      if (escalation.resolution === 'abandoned') {
+        return escalatedResult(escalation.interventionId, attempt.result.failure.message, 'abandoned');
+      }
+
+      // Deliberately no bespoke "re-verify now" check here: whatever the human did is
+      // validated by the same machinery that would validate it anyway — the next
+      // step's `driver.resolve()` if one follows, or the checkpoint check below if
+      // this was the last step (which it is for the one capability that exercises
+      // this path today). Duplicating that check here would be the same assertion
+      // twice for no added confidence.
+      stepIndex += 1;
+      continue;
+    }
 
     const observation = await driver.perceive();
     const snapshotPath = await recorder.writeObservation(observation, `step-${step.id}-perceive`);
