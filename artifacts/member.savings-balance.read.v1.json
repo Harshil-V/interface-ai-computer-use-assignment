@@ -1,0 +1,184 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "member.savings-balance.read",
+  "version": 1,
+  "title": "Read member savings balance",
+  "target": {
+    "app": "core-banking-console",
+    "tenant": "base",
+    "entryUrl": "http://localhost:5173/"
+  },
+  "surface": {
+    "kind": "web",
+    "perception": "accessibility-tree"
+  },
+  "inputs": [
+    {
+      "name": "memberId",
+      "type": "string",
+      "required": true,
+      "example": "12345",
+      "sensitivity": "quasi-identifier"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "savingsBalance",
+      "type": "currency",
+      "sensitivity": "sensitive"
+    }
+  ],
+  "steps": [
+    {
+      "id": "s1",
+      "effect": "safe",
+      "action": "fill",
+      "target": {
+        "role": "textbox",
+        "name": "Member ID",
+        "nameMatch": "exact",
+        "within": {
+          "role": "region",
+          "name": "Member lookup"
+        },
+        "ordinal": 0,
+        "fallbacks": [
+          {
+            "strategy": "label",
+            "value": "Member ID"
+          },
+          {
+            "strategy": "text",
+            "value": "Member ID"
+          }
+        ]
+      },
+      "value": {
+        "$input": "memberId"
+      }
+    },
+    {
+      "id": "s2",
+      "effect": "safe",
+      "action": "click",
+      "target": {
+        "role": "button",
+        "name": "Look up member",
+        "nameMatch": "exact",
+        "within": {
+          "role": "region",
+          "name": "Member lookup"
+        },
+        "ordinal": 0,
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "value": "Look up member"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "effect": "safe",
+      "action": "click",
+      "target": {
+        "role": "button",
+        "name": "View details for member {memberId}",
+        "nameMatch": "exact",
+        "within": {
+          "role": "cell",
+          "name": "View details for member {memberId}"
+        },
+        "ordinal": 0,
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "value": "View details for member {memberId}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "effect": "safe",
+      "action": "extract",
+      "target": {
+        "role": "definition",
+        "name": "",
+        "nameMatch": "exact",
+        "within": {
+          "role": "region",
+          "name": "Member {memberId}"
+        },
+        "ordinal": 1,
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "value": "$1,240.55"
+          }
+        ]
+      },
+      "into": "savingsBalance"
+    }
+  ],
+  "checkpoint": {
+    "assert": "visible",
+    "target": {
+      "role": "heading",
+      "name": "Member",
+      "nameMatch": "contains",
+      "ordinal": 0,
+      "fallbacks": []
+    }
+  },
+  "outcomes": [
+    {
+      "id": "member_not_found",
+      "type": "business_outcome",
+      "terminal": true,
+      "when": {
+        "role": "alert",
+        "textMatches": "No member found for ID"
+      }
+    },
+    {
+      "id": "validation_error",
+      "type": "business_outcome",
+      "terminal": true,
+      "when": {
+        "role": "alert",
+        "textMatches": "Member ID is required"
+      }
+    },
+    {
+      "id": "session_expired",
+      "type": "recoverable",
+      "when": {
+        "role": "alert",
+        "textMatches": "Session expired"
+      },
+      "recovery": {
+        "action": "click",
+        "target": {
+          "role": "button",
+          "name": "Start a new session",
+          "nameMatch": "exact",
+          "ordinal": 0,
+          "fallbacks": []
+        },
+        "thenRestartFromStep": "s1",
+        "maxAttempts": 1
+      }
+    }
+  ],
+  "provenance": {
+    "discoveredAt": "2026-08-24T00:01:50.424Z",
+    "model": "claude-sonnet-5",
+    "discoveryRunId": "20260824T000123Z-gke89c",
+    "evidencePath": "evidence/20260824T000123Z-gke89c/"
+  },
+  "approval": {
+    "state": "draft"
+  }
+}

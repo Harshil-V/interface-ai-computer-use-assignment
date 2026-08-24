@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { artifactSchema } from '../artifact/schema.ts';
+import { interpolate } from '../artifact/binding.ts';
 import type { TargetDescriptor } from '../surface/SurfaceDriver.ts';
-import { buildDraftArtifact } from './artifactBuilder.ts';
+import { buildDraftArtifact, buildMemberSavingsBalanceArtifact, type FrozenArtifactMeta } from './artifactBuilder.ts';
 import type { DiscoveryOutcome, GroundedAction } from './DiscoveryAgent.ts';
 
 function target(role: string, name: string): TargetDescriptor {
@@ -96,5 +98,188 @@ describe('buildDraftArtifact', () => {
     expect(artifact.stopReason).toBe('stuck');
     expect(artifact.stuckReason).toBe('The lookup form is not visible after three attempts.');
     expect(artifact).not.toHaveProperty('summary');
+  });
+});
+
+/**
+ * Grounded action log shaped like the real corrected discovery run
+ * (`evidence/20260823T231731Z-abwo2d/`): fill "Member ID" -> click "Look up member" ->
+ * click "View details for member {id}" -> extract a "Savings balance" definition
+ * scoped to the "Member {id}" detail region.
+ */
+function memberDetailGroundedLog(memberId: string, balanceText: string): readonly GroundedAction[] {
+  return [
+    {
+      step: 1,
+      action: { kind: 'fill', ref: 'n4', value: memberId },
+      target: {
+        role: 'textbox',
+        name: 'Member ID',
+        nameMatch: 'exact',
+        ordinal: 0,
+        within: { role: 'region', name: 'Member lookup' },
+        fallbacks: [
+          { strategy: 'label', value: 'Member ID' },
+          { strategy: 'text', value: 'Member ID' },
+        ],
+      },
+    },
+    {
+      step: 2,
+      action: { kind: 'click', ref: 'n5' },
+      target: {
+        role: 'button',
+        name: 'Look up member',
+        nameMatch: 'exact',
+        ordinal: 0,
+        within: { role: 'region', name: 'Member lookup' },
+        fallbacks: [{ strategy: 'text', value: 'Look up member' }],
+      },
+    },
+    {
+      step: 3,
+      action: { kind: 'click', ref: 'n17' },
+      target: {
+        role: 'button',
+        name: `View details for member ${memberId}`,
+        nameMatch: 'exact',
+        ordinal: 0,
+        within: { role: 'cell', name: `View details for member ${memberId}` },
+        fallbacks: [{ strategy: 'text', value: `View details for member ${memberId}` }],
+      },
+    },
+    {
+      step: 4,
+      action: { kind: 'extract', ref: 'n7' },
+      target: {
+        role: 'definition',
+        name: '',
+        nameMatch: 'exact',
+        ordinal: 1,
+        within: { role: 'region', name: `Member ${memberId}` },
+        fallbacks: [{ strategy: 'text', value: balanceText }],
+      },
+      extractedAs: 'savingsBalance',
+    },
+  ];
+}
+
+function memberDetailOutcome(memberId: string, balanceText: string): DiscoveryOutcome {
+  return {
+    stopReason: 'done',
+    summary: `Looked up member ${memberId}, opened their detail page, and read the savings balance.`,
+    steps: 6,
+    groundedActions: memberDetailGroundedLog(memberId, balanceText),
+    outputs: { savingsBalance: balanceText },
+  };
+}
+
+const frozenMeta: FrozenArtifactMeta = {
+  discoveryRunId: '20260823T231731Z-abwo2d',
+  evidencePath: 'evidence/20260823T231731Z-abwo2d/',
+  model: 'claude-sonnet-5',
+  discoveredAt: '2026-08-23T23:17:47.457Z',
+};
+
+describe('buildMemberSavingsBalanceArtifact', () => {
+  it('produces a schema-valid frozen artifact with the hand-authored checkpoint and outcomes', () => {
+    const artifact = buildMemberSavingsBalanceArtifact(memberDetailOutcome('12345', '$1,240.55'), frozenMeta);
+
+    expect(() => artifactSchema.parse(artifact)).not.toThrow();
+    expect(artifact.id).toBe('member.savings-balance.read');
+    expect(artifact.checkpoint).toEqual({
+      assert: 'visible',
+      target: { role: 'heading', name: 'Member', nameMatch: 'contains', ordinal: 0, fallbacks: [] },
+    });
+    expect(artifact.outcomes.map((outcome) => outcome.id)).toEqual([
+      'member_not_found',
+      'validation_error',
+      'session_expired',
+    ]);
+  });
+
+  it('turns the fill value on "Member ID" into an $input reference, not a baked literal', () => {
+    const artifact = buildMemberSavingsBalanceArtifact(memberDetailOutcome('12345', '$1,240.55'), frozenMeta);
+
+    const fillStep = artifact.steps.find((step) => step.action === 'fill');
+    expect(fillStep).toMatchObject({ value: { $input: 'memberId' } });
+  });
+
+  it('templatizes the memberId literal out of a step target name and its scope', () => {
+    const artifact = buildMemberSavingsBalanceArtifact(memberDetailOutcome('12345', '$1,240.55'), frozenMeta);
+
+    const detailStep = artifact.steps.find(
+      (step) => step.action === 'click' && step.target.name.startsWith('View details'),
+    );
+    expect(detailStep).toMatchObject({
+      target: {
+        name: 'View details for member {memberId}',
+        within: { role: 'cell', name: 'View details for member {memberId}' },
+      },
+    });
+  });
+
+  it('templatizes the memberId literal out of the extract step scope', () => {
+    const artifact = buildMemberSavingsBalanceArtifact(memberDetailOutcome('12345', '$1,240.55'), frozenMeta);
+
+    const extractStep = artifact.steps.find((step) => step.action === 'extract');
+    expect(extractStep).toMatchObject({
+      into: 'savingsBalance',
+      target: { within: { role: 'region', name: 'Member {memberId}' } },
+    });
+  });
+
+  it('produces identical templated steps for a different memberId run — the parameterization proof', () => {
+    const first = buildMemberSavingsBalanceArtifact(memberDetailOutcome('12345', '$1,240.55'), frozenMeta);
+    const second = buildMemberSavingsBalanceArtifact(memberDetailOutcome('67890', '$1,240.55'), frozenMeta);
+
+    expect(second.steps).toEqual(first.steps);
+  });
+
+  it('binds a templated target back to the exact literal name for a given memberId', () => {
+    const artifact = buildMemberSavingsBalanceArtifact(memberDetailOutcome('12345', '$1,240.55'), frozenMeta);
+
+    const detailStep = artifact.steps.find(
+      (step) => step.action === 'click' && step.target.name.includes('{memberId}'),
+    );
+    if (detailStep?.action !== 'click') {
+      throw new Error('expected a click step with a templated name');
+    }
+
+    expect(interpolate(detailStep.target.name, { memberId: '67890' })).toBe('View details for member 67890');
+  });
+
+  it('carries provenance pointing at the real discovery run, not an inlined transcript', () => {
+    const artifact = buildMemberSavingsBalanceArtifact(memberDetailOutcome('12345', '$1,240.55'), frozenMeta);
+
+    expect(artifact.provenance).toEqual({
+      discoveredAt: frozenMeta.discoveredAt,
+      model: frozenMeta.model,
+      discoveryRunId: frozenMeta.discoveryRunId,
+      evidencePath: frozenMeta.evidencePath,
+    });
+  });
+
+  it('throws when the grounded log has no fill on the "Member ID" textbox', () => {
+    const outcome: DiscoveryOutcome = { stopReason: 'done', steps: 0, groundedActions: [], outputs: {} };
+
+    expect(() => buildMemberSavingsBalanceArtifact(outcome, frozenMeta)).toThrow(/Member ID/);
+  });
+
+  it('throws when the grounded log has no extract step', () => {
+    const outcome: DiscoveryOutcome = {
+      stopReason: 'done',
+      steps: 1,
+      groundedActions: [
+        {
+          step: 1,
+          action: { kind: 'fill', ref: 'n1', value: '12345' },
+          target: { role: 'textbox', name: 'Member ID', nameMatch: 'exact', ordinal: 0, fallbacks: [] },
+        },
+      ],
+      outputs: {},
+    };
+
+    expect(() => buildMemberSavingsBalanceArtifact(outcome, frozenMeta)).toThrow(/extract/);
   });
 });

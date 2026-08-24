@@ -1,7 +1,8 @@
 import { parseArgs } from 'node:util';
+import { saveArtifact } from './artifact/store.ts';
 import { ConfigError, loadConfig, type AutomationConfig } from './config.ts';
-import { runDiscovery } from './discovery/DiscoveryAgent.ts';
-import { buildDraftArtifact } from './discovery/artifactBuilder.ts';
+import { runDiscovery, type DiscoveryOutcome } from './discovery/DiscoveryAgent.ts';
+import { buildDraftArtifact, buildMemberSavingsBalanceArtifact } from './discovery/artifactBuilder.ts';
 import { EvidenceRecorder, type RunMode } from './evidence/EvidenceRecorder.ts';
 import { PlaywrightWebDriver } from './surface/PlaywrightWebDriver.ts';
 
@@ -156,6 +157,10 @@ async function runDiscover(goal: string, url: string, values: CliValues): Promis
     process.stdout.write(`${JSON.stringify(artifact, null, JSON_INDENT)}\n`);
 
     const goalMet = outcome.stopReason === 'done';
+    if (goalMet) {
+      freezeAndSaveArtifact(outcome, recorder, config);
+    }
+
     const runLogPath = await recorder.finish(
       goalMet
         ? { status: 'completed' }
@@ -167,6 +172,32 @@ async function runDiscover(goal: string, url: string, values: CliValues): Promis
     return await failRun(recorder, 'Discovery', error);
   } finally {
     await driver.close();
+  }
+}
+
+/**
+ * `buildMemberSavingsBalanceArtifact` only recognizes this one capability's grounded
+ * shape (a fill on "Member ID" plus an extract). A discovery run against some other
+ * goal fails this cleanly rather than silently freezing the wrong capability, so a
+ * mismatch is reported and the run still exits 0 on `goalMet` — freezing an artifact is
+ * this milestone's deliverable, not a requirement of every discovery run.
+ */
+function freezeAndSaveArtifact(
+  outcome: DiscoveryOutcome,
+  recorder: EvidenceRecorder,
+  config: AutomationConfig,
+): void {
+  try {
+    const frozen = buildMemberSavingsBalanceArtifact(outcome, {
+      discoveryRunId: recorder.runId,
+      evidencePath: `evidence/${recorder.runId}/`,
+      model: config.anthropicModel,
+    });
+    const savedPath = saveArtifact(frozen);
+    process.stderr.write(`Frozen capability artifact written to ${savedPath}\n`);
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    process.stderr.write(`Could not freeze a capability artifact from this run: ${detail}\n`);
   }
 }
 
