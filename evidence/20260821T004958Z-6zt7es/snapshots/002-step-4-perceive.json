@@ -1,0 +1,131 @@
+{
+  "url": "http://localhost:5173/",
+  "title": "Core Banking Console (Mock)",
+  "capturedAt": "2026-08-21T00:50:07.452Z",
+  "nodes": [
+    {
+      "ref": "n1",
+      "role": "main",
+      "name": "",
+      "children": [
+        {
+          "ref": "n2",
+          "role": "region",
+          "name": "Member lookup",
+          "children": [
+            {
+              "ref": "n3",
+              "role": "heading",
+              "name": "Member lookup",
+              "states": {
+                "level": "1"
+              },
+              "children": []
+            },
+            {
+              "ref": "n4",
+              "role": "textbox",
+              "name": "Member ID",
+              "text": "12345",
+              "children": []
+            },
+            {
+              "ref": "n5",
+              "role": "button",
+              "name": "Look up member",
+              "children": []
+            },
+            {
+              "ref": "n6",
+              "role": "table",
+              "name": "Search result",
+              "children": [
+                {
+                  "ref": "n7",
+                  "role": "rowgroup",
+                  "name": "",
+                  "children": [
+                    {
+                      "ref": "n8",
+                      "role": "row",
+                      "name": "Member ID Savings balance Action",
+                      "children": [
+                        {
+                          "ref": "n9",
+                          "role": "columnheader",
+                          "name": "Member ID",
+                          "children": []
+                        },
+                        {
+                          "ref": "n10",
+                          "role": "columnheader",
+                          "name": "Savings balance",
+                          "children": []
+                        },
+                        {
+                          "ref": "n11",
+                          "role": "columnheader",
+                          "name": "Action",
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "ref": "n12",
+                  "role": "rowgroup",
+                  "name": "",
+                  "children": [
+                    {
+                      "ref": "n13",
+                      "role": "row",
+                      "name": "12345 $1,240.55 View details for member 12345",
+                      "children": [
+                        {
+                          "ref": "n14",
+                          "role": "cell",
+                          "name": "12345",
+                          "children": []
+                        },
+                        {
+                          "ref": "n15",
+                          "role": "cell",
+                          "name": "$1,240.55",
+                          "children": []
+                        },
+                        {
+                          "ref": "n16",
+                          "role": "cell",
+                          "name": "View details for member 12345",
+                          "children": [
+                            {
+                              "ref": "n17",
+                              "role": "button",
+                              "name": "View details for member 12345",
+                              "text": "View details",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ref": "n18",
+          "role": "group",
+          "name": "",
+          "text": "Dev tools (demo / automation only)",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "truncated": false,
+  "screenshotPath": "screenshots/002-observation.png"
+}

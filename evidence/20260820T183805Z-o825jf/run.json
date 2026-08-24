@@ -1,0 +1,42 @@
+{
+  "runId": "20260820T183805Z-o825jf",
+  "mode": "snapshot",
+  "goal": "Perceive http://localhost:5173",
+  "startedAt": "2026-08-20T18:38:05.503Z",
+  "finishedAt": "2026-08-20T18:38:06.709Z",
+  "redaction": {
+    "appliedTo": [
+      "step values",
+      "extracted values",
+      "persisted accessibility snapshots"
+    ],
+    "classifiedValueCount": 0
+  },
+  "steps": [
+    {
+      "index": 1,
+      "at": "2026-08-20T18:38:06.661Z",
+      "type": "navigate",
+      "reason": "Open the target surface named on the command line.",
+      "action": {
+        "kind": "navigate",
+        "url": "http://localhost:5173"
+      },
+      "outcome": "ok",
+      "url": "http://localhost:5173"
+    },
+    {
+      "index": 2,
+      "at": "2026-08-20T18:38:06.709Z",
+      "type": "perceive",
+      "reason": "Capture the accessibility tree that later milestones will reason over.",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/001-observation.png",
+      "snapshot": "snapshots/001-observation.json"
+    }
+  ],
+  "outcome": {
+    "status": "completed"
+  }
+}
