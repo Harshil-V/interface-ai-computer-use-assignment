@@ -10,7 +10,6 @@
     "riskyTargetNamePatterns": [
       "^confirm\\b",
       "\\bcreate\\b",
-      "\\bopen sub-account\\b",
       "\\b(submit|approve|transfer|delete|close)\\b"
     ]
   },
