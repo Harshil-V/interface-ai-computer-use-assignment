@@ -110,6 +110,16 @@ from `hard`. Anything unclassified is a `hard` failure carrying `stepId`, `expec
 | Business outcome | `20260824T004048Z-j3wtux` | `memberId=99999` | `business_outcome: member_not_found` |
 | Recoverable | `20260824T004055Z-fbigz2` | `12345` + `?forceExpireSession=1` | `session_expired` → recovery clicks "Start a new session" → restarts `s1` → `success` |
 
+**The recoverable tier again, from a live session.** `20260824T004055Z-fbigz2` above starts
+the page already expired via the `?forceExpireSession=1` query param. `20260824T215200Z-xbj4bm`
+(`scripts/demo-replay-recovery.ts`) exercises the same declared recovery through a different
+trigger: it drives a real replay of `member.savings-balance.read` against a normal, live
+session, and clicks the DevTools "Force expire session" button on the actual page mid-run via
+`driver.liveOperatorPage`, the same mechanism `demo-replay-intervention.ts` uses for its
+operator click. The run shows `session_expired` matched after step `s3`, the recovery click on
+"Start a new session," a restart from `s1`, and `success` with the real `$1,240.55` balance —
+proving the button/`forceExpire()` code path independently of the URL-param path above.
+
 **Disclosed gap.** The schema's `wait.until: "target-visible"` and `timeoutMs` fields exist,
 but `ReplayEngine.ts` never reads them. Playwright's own locator auto-wait, bounded by
 `policy.limits.actionTimeoutMs`, has covered every case so far, because Part A's UI is
