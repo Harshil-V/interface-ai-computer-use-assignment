@@ -1,0 +1,83 @@
+{
+  "runId": "20260824T004048Z-j3wtux",
+  "mode": "replay",
+  "goal": "Replay \"member.savings-balance.read\" v1 with {\"memberId\":\"99999\"}.",
+  "startedAt": "2026-08-24T00:40:48.805Z",
+  "finishedAt": "2026-08-24T00:40:49.404Z",
+  "redaction": {
+    "appliedTo": [
+      "step values",
+      "extracted values",
+      "persisted accessibility snapshots"
+    ],
+    "classifiedValueCount": 0
+  },
+  "steps": [
+    {
+      "index": 1,
+      "at": "2026-08-24T00:40:49.295Z",
+      "type": "navigate",
+      "reason": "Open the entry URL for capability \"member.savings-balance.read\".",
+      "action": {
+        "kind": "navigate",
+        "url": "http://localhost:5173/"
+      },
+      "outcome": "ok",
+      "url": "http://localhost:5173/"
+    },
+    {
+      "index": 2,
+      "at": "2026-08-24T00:40:49.327Z",
+      "type": "act",
+      "reason": "Step \"s1\": fill on textbox \"Member ID\".",
+      "action": {
+        "kind": "fill",
+        "ref": "r1",
+        "value": "*9999"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 3,
+      "at": "2026-08-24T00:40:49.347Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s1\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/001-observation.png",
+      "snapshot": "snapshots/001-step-s1-perceive.json"
+    },
+    {
+      "index": 4,
+      "at": "2026-08-24T00:40:49.370Z",
+      "type": "act",
+      "reason": "Step \"s2\": click on button \"Look up member\".",
+      "action": {
+        "kind": "click",
+        "ref": "n5"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 5,
+      "at": "2026-08-24T00:40:49.403Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s2\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/002-observation.png",
+      "snapshot": "snapshots/002-step-s2-perceive.json"
+    },
+    {
+      "index": 6,
+      "at": "2026-08-24T00:40:49.403Z",
+      "type": "note",
+      "reason": "Matched declared outcome \"member_not_found\" (business_outcome) after step \"s2\": No member found for ID 99999.",
+      "outcome": "ok"
+    }
+  ],
+  "outcome": {
+    "status": "completed",
+    "detail": "Business outcome \"member_not_found\": No member found for ID 99999."
+  }
+}
