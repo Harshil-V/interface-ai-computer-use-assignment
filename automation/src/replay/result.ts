@@ -1,8 +1,8 @@
 /**
  * The typed outcome of one replay run, per the plan's "Replay result contract".
- * `escalated` is produced by the (not-yet-built) HITL hand-back path — declared here
- * now so the union is complete, but `ReplayEngine` in this milestone never constructs
- * it.
+ * `escalated` is produced by the HITL hand-back path: `ReplayEngine` returns it when the
+ * operator abandons the intervention, while a resumed intervention continues the run to
+ * one of the other three shapes.
  */
 
 export interface ReplaySuccessResult {
