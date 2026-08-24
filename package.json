@@ -12,6 +12,8 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "automation": "npm run cli --workspace automation --",
+    "snapshot": "npm run automation -- snapshot",
+    "discover": "npm run automation -- discover",
     "test:mock-console": "npm run test --workspace mock-console",
     "test:automation": "npm run test --workspace automation"
   }
