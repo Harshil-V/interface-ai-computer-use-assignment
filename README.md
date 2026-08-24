@@ -20,7 +20,9 @@ declared retry policy is exhausted.
   artifact.
 
 Both are versioned JSON under [`artifacts/`](artifacts/). Both have real discovery-run and
-replay-run evidence under [`evidence/`](evidence/).
+replay-run evidence under [`evidence/`](evidence/). Each artifact's `provenance.discoveryRunId`
+and `provenance.evidencePath` fields point at the evidence run that produced it. Every replay's
+own `evidence/<runId>/run.json` records which capability it replayed in its `goal` string.
 
 ## Repo layout
 
