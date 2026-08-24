@@ -14,6 +14,7 @@
     "automation": "npm run cli --workspace automation --",
     "snapshot": "npm run automation -- snapshot",
     "discover": "npm run automation -- discover",
+    "replay": "npm run automation -- replay",
     "test:mock-console": "npm run test --workspace mock-console",
     "test:automation": "npm run test --workspace automation"
   }

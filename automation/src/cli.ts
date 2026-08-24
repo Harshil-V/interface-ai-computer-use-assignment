@@ -1,15 +1,22 @@
+import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { saveArtifact } from './artifact/store.ts';
+import type { Artifact } from './artifact/schema.ts';
+import { artifactFilePath, loadArtifact, saveArtifact } from './artifact/store.ts';
 import { ConfigError, loadConfig, type AutomationConfig } from './config.ts';
 import { runDiscovery, type DiscoveryOutcome } from './discovery/DiscoveryAgent.ts';
 import { buildDraftArtifact, buildMemberSavingsBalanceArtifact } from './discovery/artifactBuilder.ts';
-import { EvidenceRecorder, type RunMode } from './evidence/EvidenceRecorder.ts';
+import { EvidenceRecorder, type RunMode, type RunOutcome } from './evidence/EvidenceRecorder.ts';
+import { runReplay } from './replay/ReplayEngine.ts';
+import type { ReplayResult } from './replay/result.ts';
 import { PlaywrightWebDriver } from './surface/PlaywrightWebDriver.ts';
 
 const COMMAND_SNAPSHOT = 'snapshot';
 const COMMAND_DISCOVER = 'discover';
+const COMMAND_REPLAY = 'replay';
+const DEFAULT_ARTIFACT_VERSION = 1;
 const JSON_INDENT = 2;
 const EXIT_FAILURE = 1;
+const EXIT_SUCCESS = 0;
 
 const USAGE = `Usage: npm run automation -- <command> [options]
 
@@ -21,6 +28,18 @@ Commands:
     Runs the LLM discovery loop against the page until it declares the goal met,
     declares a dead end, or exhausts its step/time budget. Prints a rough capability
     artifact and writes a full evidence folder.
+
+  ${COMMAND_REPLAY} --artifact <path-or-id> [--input name=value ...] [--url <entryUrl>]
+    Deterministically replays a frozen capability artifact. Zero LLM spend — this
+    command never imports an LLM client. <path-or-id> is either a path to an artifact
+    JSON file, or a bare capability id (optionally "id@version", defaulting to
+    version ${DEFAULT_ARTIFACT_VERSION}) resolved under artifacts/. Repeat --input once per
+    declared input. --url overrides the artifact's target.entryUrl, e.g. to append
+    "?forceExpireSession=1" for the session_expired recovery demo.
+    Prints the structured ReplayResult to stdout. Exit code: 0 for "success" and
+    "business_outcome" (a business outcome is a successful classification, not a
+    crash) or an "escalated" run that resumed; non-zero for "failure" and an
+    "escalated" run that was abandoned.
 
 Options (all commands):
   --policy <path>        Policy JSON. Defaults to automation/config/policy.json,
@@ -39,6 +58,8 @@ const options = {
   policy: { type: 'string' },
   'evidence-dir': { type: 'string' },
   headless: { type: 'boolean' },
+  artifact: { type: 'string' },
+  input: { type: 'string', multiple: true },
 } as const;
 
 type CliValues = {
@@ -47,11 +68,17 @@ type CliValues = {
   policy?: string;
   'evidence-dir'?: string;
   headless?: boolean;
+  artifact?: string;
+  input?: string[];
 };
 
 async function main(argv: readonly string[]): Promise<number> {
   const { values, positionals } = parseArgs({ args: [...argv], options, allowPositionals: true });
   const [command] = positionals;
+
+  if (command === COMMAND_REPLAY) {
+    return await runReplayCommand(values);
+  }
 
   if (command !== COMMAND_SNAPSHOT && command !== COMMAND_DISCOVER) {
     process.stderr.write(`${command === undefined ? '' : `Unknown command "${command}".\n\n`}${USAGE}\n`);
@@ -175,6 +202,133 @@ async function runDiscover(goal: string, url: string, values: CliValues): Promis
   }
 }
 
+async function runReplayCommand(values: CliValues): Promise<number> {
+  const artifactSpec = requireOption(values, 'artifact');
+  if (artifactSpec === null) {
+    return EXIT_FAILURE;
+  }
+
+  let artifact: Artifact;
+  try {
+    artifact = loadArtifact(resolveArtifactPath(artifactSpec));
+  } catch (error) {
+    process.stderr.write(`${messageOf(error)}\n`);
+    return EXIT_FAILURE;
+  }
+
+  let params: Record<string, string>;
+  try {
+    params = parseInputs(values.input ?? []);
+  } catch (error) {
+    process.stderr.write(`${messageOf(error)}\n\n${USAGE}\n`);
+    return EXIT_FAILURE;
+  }
+
+  const missingInputs = artifact.inputs.filter(
+    (input) => input.required && params[input.name] === undefined,
+  );
+  if (missingInputs.length > 0) {
+    process.stderr.write(
+      `Missing required --input for: ${missingInputs.map((input) => input.name).join(', ')}.\n\n${USAGE}\n`,
+    );
+    return EXIT_FAILURE;
+  }
+
+  const config = loadConfig({
+    policyPath: values.policy,
+    evidenceDir: values['evidence-dir'],
+    headless: values.headless,
+  });
+
+  const recorder = await createRecorder(
+    config,
+    'replay',
+    `Replay "${artifact.id}" v${artifact.version} with ${JSON.stringify(params)}.`,
+  );
+  const driver = await launchDriver(config, recorder);
+
+  try {
+    const result = await runReplay({
+      artifact,
+      params,
+      driver,
+      recorder,
+      ...(values.url === undefined ? {} : { entryUrl: values.url }),
+    });
+
+    process.stdout.write(`${JSON.stringify(result, null, JSON_INDENT)}\n`);
+
+    const runLogPath = await recorder.finish(runOutcomeFor(result));
+    process.stderr.write(`Evidence written to ${recorder.runDir}\nRun log: ${runLogPath}\n`);
+    return exitCodeFor(result);
+  } catch (error) {
+    return await failRun(recorder, 'Replay', error);
+  } finally {
+    await driver.close();
+  }
+}
+
+/** `<path>.json` is a file path; anything else is a capability id, optionally `id@version`. */
+function resolveArtifactPath(spec: string): string {
+  if (spec.endsWith('.json')) {
+    // npm sets INIT_CWD to where the user actually ran `npm run` from, which is the
+    // repo root for the root pass-through scripts — not `automation/`, which is what
+    // `process.cwd()` would give us and would silently mis-resolve a repo-relative path.
+    return path.resolve(process.env.INIT_CWD ?? process.cwd(), spec);
+  }
+  const separatorIndex = spec.lastIndexOf('@');
+  if (separatorIndex === -1) {
+    return artifactFilePath(spec, DEFAULT_ARTIFACT_VERSION);
+  }
+  const version = Number.parseInt(spec.slice(separatorIndex + 1), 10);
+  return artifactFilePath(spec.slice(0, separatorIndex), version);
+}
+
+function parseInputs(pairs: readonly string[]): Record<string, string> {
+  const params: Record<string, string> = {};
+  for (const pair of pairs) {
+    const separatorIndex = pair.indexOf('=');
+    if (separatorIndex === -1) {
+      throw new Error(`--input "${pair}" is not in "name=value" form.`);
+    }
+    params[pair.slice(0, separatorIndex)] = pair.slice(separatorIndex + 1);
+  }
+  return params;
+}
+
+/**
+ * A `business_outcome` is the capability's own declared classification of a known
+ * runtime condition, not a crash — so it is recorded as `completed`, same as `success`.
+ */
+function runOutcomeFor(result: ReplayResult): RunOutcome {
+  switch (result.status) {
+    case 'success':
+      return { status: 'completed' };
+    case 'business_outcome':
+      return { status: 'completed', detail: `Business outcome "${result.outcomeId}": ${result.detail}` };
+    case 'escalated':
+      return {
+        status: result.resolution === 'resumed' ? 'completed' : 'failed',
+        detail: `Escalated (${result.resolution}): ${result.reason}`,
+      };
+    case 'failure':
+      return {
+        status: 'failed',
+        detail: `${result.error.class} failure at step "${result.error.stepId}": expected ${result.error.expected}, observed ${result.error.observed}`,
+      };
+  }
+}
+
+function exitCodeFor(result: ReplayResult): number {
+  if (result.status === 'failure') {
+    return EXIT_FAILURE;
+  }
+  if (result.status === 'escalated') {
+    return result.resolution === 'resumed' ? EXIT_SUCCESS : EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
+}
+
 /**
  * `buildMemberSavingsBalanceArtifact` only recognizes this one capability's grounded
  * shape (a fill on "Member ID" plus an extract). A discovery run against some other
@@ -232,10 +386,14 @@ async function navigateOrThrow(
 }
 
 async function failRun(recorder: EvidenceRecorder, label: string, error: unknown): Promise<number> {
-  const detail = error instanceof Error ? error.message : String(error);
+  const detail = messageOf(error);
   await recorder.finish({ status: 'failed', detail });
   process.stderr.write(`${label} failed: ${detail}\nEvidence written to ${recorder.runDir}\n`);
   return EXIT_FAILURE;
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 async function createRecorder(config: AutomationConfig, mode: RunMode, goal: string): Promise<EvidenceRecorder> {
