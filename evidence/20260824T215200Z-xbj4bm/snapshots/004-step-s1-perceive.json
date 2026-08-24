@@ -1,0 +1,72 @@
+{
+  "url": "http://localhost:5173/",
+  "title": "Core Banking Console (Mock)",
+  "capturedAt": "2026-08-24T21:52:02.685Z",
+  "nodes": [
+    {
+      "ref": "n1",
+      "role": "main",
+      "name": "",
+      "children": [
+        {
+          "ref": "n2",
+          "role": "region",
+          "name": "Member lookup",
+          "children": [
+            {
+              "ref": "n3",
+              "role": "heading",
+              "name": "Member lookup",
+              "states": {
+                "level": "1"
+              },
+              "children": []
+            },
+            {
+              "ref": "n4",
+              "role": "textbox",
+              "name": "Member ID",
+              "text": "12345",
+              "children": []
+            },
+            {
+              "ref": "n5",
+              "role": "button",
+              "name": "Look up member",
+              "children": []
+            }
+          ]
+        },
+        {
+          "ref": "n6",
+          "role": "group",
+          "name": "",
+          "children": [
+            {
+              "ref": "n7",
+              "role": "text",
+              "name": "",
+              "text": "Dev tools (demo / automation only)",
+              "children": []
+            },
+            {
+              "ref": "n8",
+              "role": "paragraph",
+              "name": "",
+              "text": "Session status: active",
+              "children": []
+            },
+            {
+              "ref": "n9",
+              "role": "button",
+              "name": "Force expire session",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "truncated": false,
+  "screenshotPath": "screenshots/004-observation.png"
+}

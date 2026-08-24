@@ -112,6 +112,15 @@ npm run replay -- --artifact member.savings-balance.read --input memberId=12345 
   --url "http://localhost:5173/?forceExpireSession=1"
 ```
 
+The same recovery also fires from a session that starts out live: `demo-replay-recovery.ts`
+drives a real replay and clicks the DevTools "Force expire session" button on the actual live
+page mid-run, rather than starting the page already expired via the URL param above.
+
+```bash
+cd automation
+npx tsx scripts/demo-replay-recovery.ts
+```
+
 ### 3. Inspect the operator surface (HITL)
 
 ```bash

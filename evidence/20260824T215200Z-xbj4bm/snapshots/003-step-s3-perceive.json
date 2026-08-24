@@ -1,0 +1,72 @@
+{
+  "url": "http://localhost:5173/",
+  "title": "Core Banking Console (Mock)",
+  "capturedAt": "2026-08-24T21:52:02.638Z",
+  "nodes": [
+    {
+      "ref": "n1",
+      "role": "main",
+      "name": "",
+      "children": [
+        {
+          "ref": "n2",
+          "role": "alert",
+          "name": "",
+          "children": [
+            {
+              "ref": "n3",
+              "role": "heading",
+              "name": "Session expired",
+              "states": {
+                "level": "2"
+              },
+              "children": []
+            },
+            {
+              "ref": "n4",
+              "role": "paragraph",
+              "name": "",
+              "text": "Your session has been idle for too long and has expired. Start a new session to continue.",
+              "children": []
+            },
+            {
+              "ref": "n5",
+              "role": "button",
+              "name": "Start a new session",
+              "children": []
+            }
+          ]
+        },
+        {
+          "ref": "n6",
+          "role": "group",
+          "name": "",
+          "children": [
+            {
+              "ref": "n7",
+              "role": "text",
+              "name": "",
+              "text": "Dev tools (demo / automation only)",
+              "children": []
+            },
+            {
+              "ref": "n8",
+              "role": "paragraph",
+              "name": "",
+              "text": "Session status: expired",
+              "children": []
+            },
+            {
+              "ref": "n9",
+              "role": "button",
+              "name": "Force expire session",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "truncated": false,
+  "screenshotPath": "screenshots/003-observation.png"
+}
