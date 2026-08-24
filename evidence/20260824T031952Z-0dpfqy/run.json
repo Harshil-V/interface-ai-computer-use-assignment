@@ -1,0 +1,246 @@
+{
+  "runId": "20260824T031952Z-0dpfqy",
+  "mode": "replay",
+  "goal": "Demo #1: risky-action HITL replay of \"member.sub-account.open\" for member 12345.",
+  "startedAt": "2026-08-24T03:19:52.832Z",
+  "finishedAt": "2026-08-24T03:19:54.980Z",
+  "redaction": {
+    "appliedTo": [
+      "step values",
+      "extracted values",
+      "persisted accessibility snapshots"
+    ],
+    "classifiedValueCount": 0
+  },
+  "steps": [
+    {
+      "index": 1,
+      "at": "2026-08-24T03:19:54.315Z",
+      "type": "navigate",
+      "reason": "Open the entry URL for capability \"member.sub-account.open\".",
+      "action": {
+        "kind": "navigate",
+        "url": "http://localhost:5173/"
+      },
+      "outcome": "ok",
+      "url": "http://localhost:5173/"
+    },
+    {
+      "index": 2,
+      "at": "2026-08-24T03:19:54.343Z",
+      "type": "act",
+      "reason": "Step \"s1\": fill on textbox \"Member ID\".",
+      "action": {
+        "kind": "fill",
+        "ref": "r1",
+        "value": "*2345"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 3,
+      "at": "2026-08-24T03:19:54.382Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s1\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/001-observation.png",
+      "snapshot": "snapshots/001-step-s1-perceive.json"
+    },
+    {
+      "index": 4,
+      "at": "2026-08-24T03:19:54.429Z",
+      "type": "act",
+      "reason": "Step \"s2\": click on button \"Look up member\".",
+      "action": {
+        "kind": "click",
+        "ref": "n5"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 5,
+      "at": "2026-08-24T03:19:54.455Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s2\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/002-observation.png",
+      "snapshot": "snapshots/002-step-s2-perceive.json"
+    },
+    {
+      "index": 6,
+      "at": "2026-08-24T03:19:54.475Z",
+      "type": "act",
+      "reason": "Step \"s3\": click on button \"View details for member 12345\".",
+      "action": {
+        "kind": "click",
+        "ref": "n17"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 7,
+      "at": "2026-08-24T03:19:54.497Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s3\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/003-observation.png",
+      "snapshot": "snapshots/003-step-s3-perceive.json"
+    },
+    {
+      "index": 8,
+      "at": "2026-08-24T03:19:54.517Z",
+      "type": "act",
+      "reason": "Step \"s4\": click on button \"Open sub-account\".",
+      "action": {
+        "kind": "click",
+        "ref": "n8"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 9,
+      "at": "2026-08-24T03:19:54.547Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s4\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/004-observation.png",
+      "snapshot": "snapshots/004-step-s4-perceive.json"
+    },
+    {
+      "index": 10,
+      "at": "2026-08-24T03:19:54.551Z",
+      "type": "act",
+      "reason": "Step \"s5\": select on combobox \"Account type\".",
+      "action": {
+        "kind": "select",
+        "ref": "n4",
+        "value": "Savings"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 11,
+      "at": "2026-08-24T03:19:54.579Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s5\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/005-observation.png",
+      "snapshot": "snapshots/005-step-s5-perceive.json"
+    },
+    {
+      "index": 12,
+      "at": "2026-08-24T03:19:54.583Z",
+      "type": "act",
+      "reason": "Step \"s6\": fill on textbox \"Initial deposit amount (USD)\".",
+      "action": {
+        "kind": "fill",
+        "ref": "n9",
+        "value": "[redacted]"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 13,
+      "at": "2026-08-24T03:19:54.604Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s6\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/006-observation.png",
+      "snapshot": "snapshots/006-step-s6-perceive.json"
+    },
+    {
+      "index": 14,
+      "at": "2026-08-24T03:19:54.608Z",
+      "type": "act",
+      "reason": "Step \"s7\": fill on textbox \"Nickname\".",
+      "action": {
+        "kind": "fill",
+        "ref": "n10",
+        "value": "Demo HITL sub-account"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 15,
+      "at": "2026-08-24T03:19:54.643Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s7\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/007-observation.png",
+      "snapshot": "snapshots/007-step-s7-perceive.json"
+    },
+    {
+      "index": 16,
+      "at": "2026-08-24T03:19:54.667Z",
+      "type": "act",
+      "reason": "Step \"s8\": click on button \"Continue to confirmation\".",
+      "action": {
+        "kind": "click",
+        "ref": "n11"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 17,
+      "at": "2026-08-24T03:19:54.690Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s8\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/008-observation.png",
+      "snapshot": "snapshots/008-step-s8-perceive.json"
+    },
+    {
+      "index": 18,
+      "at": "2026-08-24T03:19:54.690Z",
+      "type": "act",
+      "reason": "Step \"s9\": click on button \"Confirm and open sub-account\".",
+      "action": {
+        "kind": "click",
+        "ref": "n11"
+      },
+      "outcome": "failed",
+      "failure": {
+        "code": "policy_intervention_required",
+        "message": "Target name \"Confirm and open sub-account\" matches risky pattern /^confirm\\b/i."
+      }
+    },
+    {
+      "index": 19,
+      "at": "2026-08-24T03:19:54.713Z",
+      "type": "intervention",
+      "reason": "Intervention \"intervention-1\" raised at step \"s9\" (guardrail): Target name \"Confirm and open sub-account\" matches risky pattern /^confirm\\b/i.",
+      "outcome": "ok",
+      "screenshot": "screenshots/009-observation.png",
+      "snapshot": "snapshots/009-intervention-s9-before.json"
+    },
+    {
+      "index": 20,
+      "at": "2026-08-24T03:19:54.980Z",
+      "type": "intervention",
+      "reason": "Intervention \"intervention-1\" resolved (resumed). 5 node(s) added, 11 removed.",
+      "outcome": "ok",
+      "screenshot": "screenshots/010-observation.png",
+      "snapshot": "snapshots/010-intervention-s9-after.json",
+      "operatorNote": "Reviewed the confirmation summary against the request (Savings, $250, \"Demo HITL sub-account\") and it matches; clicking Confirm on the operator's behalf for this demo."
+    },
+    {
+      "index": 21,
+      "at": "2026-08-24T03:19:54.980Z",
+      "type": "note",
+      "reason": "Before/after accessibility-snapshot diff for intervention \"intervention-1\" written to evidence.",
+      "outcome": "ok",
+      "snapshot": "snapshots/011-intervention-s9-diff.json"
+    }
+  ],
+  "outcome": {
+    "status": "completed"
+  }
+}

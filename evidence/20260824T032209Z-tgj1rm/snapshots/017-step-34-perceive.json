@@ -1,0 +1,117 @@
+{
+  "url": "http://localhost:5173/",
+  "title": "Core Banking Console (Mock)",
+  "capturedAt": "2026-08-24T03:23:36.787Z",
+  "nodes": [
+    {
+      "ref": "n1",
+      "role": "main",
+      "name": "",
+      "children": [
+        {
+          "ref": "n2",
+          "role": "region",
+          "name": "Open sub-account for member 12345",
+          "children": [
+            {
+              "ref": "n3",
+              "role": "heading",
+              "name": "Open sub-account for member 12345",
+              "states": {
+                "level": "1"
+              },
+              "children": []
+            },
+            {
+              "ref": "n4",
+              "role": "combobox",
+              "name": "Account type",
+              "children": [
+                {
+                  "ref": "n5",
+                  "role": "option",
+                  "name": "Select an account type",
+                  "states": {
+                    "selected": "true"
+                  },
+                  "children": []
+                },
+                {
+                  "ref": "n6",
+                  "role": "option",
+                  "name": "Checking",
+                  "children": []
+                },
+                {
+                  "ref": "n7",
+                  "role": "option",
+                  "name": "Savings",
+                  "children": []
+                },
+                {
+                  "ref": "n8",
+                  "role": "option",
+                  "name": "Money Market",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "ref": "n9",
+              "role": "textbox",
+              "name": "Initial deposit amount (USD)",
+              "children": []
+            },
+            {
+              "ref": "n10",
+              "role": "textbox",
+              "name": "Nickname",
+              "children": []
+            },
+            {
+              "ref": "n11",
+              "role": "button",
+              "name": "Continue to confirmation",
+              "children": []
+            },
+            {
+              "ref": "n12",
+              "role": "button",
+              "name": "Cancel",
+              "children": []
+            }
+          ]
+        },
+        {
+          "ref": "n13",
+          "role": "group",
+          "name": "",
+          "children": [
+            {
+              "ref": "n14",
+              "role": "text",
+              "name": "",
+              "text": "Dev tools (demo / automation only)",
+              "children": []
+            },
+            {
+              "ref": "n15",
+              "role": "paragraph",
+              "name": "",
+              "text": "Session status: active",
+              "children": []
+            },
+            {
+              "ref": "n16",
+              "role": "button",
+              "name": "Force expire session",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "truncated": false,
+  "screenshotPath": "screenshots/017-observation.png"
+}

@@ -1,0 +1,58 @@
+{
+  "url": "http://localhost:5173/",
+  "title": "Core Banking Console (Mock)",
+  "capturedAt": "2026-08-24T03:19:54.954Z",
+  "nodes": [
+    {
+      "ref": "n1",
+      "role": "main",
+      "name": "",
+      "children": [
+        {
+          "ref": "n2",
+          "role": "region",
+          "name": "Sub-account created",
+          "children": [
+            {
+              "ref": "n3",
+              "role": "heading",
+              "name": "Sub-account created",
+              "states": {
+                "level": "1"
+              },
+              "children": []
+            },
+            {
+              "ref": "n4",
+              "role": "status",
+              "name": "",
+              "text": "A new Savings sub-account \"Demo HITL sub-account\" was opened for member 12345 with an initial deposit of $250.00.",
+              "children": []
+            },
+            {
+              "ref": "n5",
+              "role": "button",
+              "name": "Back to member 12345",
+              "children": []
+            },
+            {
+              "ref": "n6",
+              "role": "button",
+              "name": "Look up another member",
+              "children": []
+            }
+          ]
+        },
+        {
+          "ref": "n7",
+          "role": "group",
+          "name": "",
+          "text": "Dev tools (demo / automation only)",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "truncated": false,
+  "screenshotPath": "screenshots/010-observation.png"
+}

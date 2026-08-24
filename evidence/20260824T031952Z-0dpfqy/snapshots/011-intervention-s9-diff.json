@@ -1,0 +1,89 @@
+{
+  "beforeUrl": "http://localhost:5173/",
+  "afterUrl": "http://localhost:5173/",
+  "urlChanged": false,
+  "added": [
+    {
+      "role": "region",
+      "name": "Sub-account created",
+      "text": ""
+    },
+    {
+      "role": "heading",
+      "name": "Sub-account created",
+      "text": ""
+    },
+    {
+      "role": "status",
+      "name": "",
+      "text": "A new Savings sub-account \"Demo HITL sub-account\" was opened for member 12345 with an initial deposit of $250.00."
+    },
+    {
+      "role": "button",
+      "name": "Back to member 12345",
+      "text": ""
+    },
+    {
+      "role": "button",
+      "name": "Look up another member",
+      "text": ""
+    }
+  ],
+  "removed": [
+    {
+      "role": "region",
+      "name": "Confirm new sub-account",
+      "text": ""
+    },
+    {
+      "role": "heading",
+      "name": "Confirm new sub-account",
+      "text": ""
+    },
+    {
+      "role": "paragraph",
+      "name": "",
+      "text": "Review the details below before creating this sub-account for member 12345. This action cannot be undone."
+    },
+    {
+      "role": "term",
+      "name": "",
+      "text": "Account type"
+    },
+    {
+      "role": "definition",
+      "name": "",
+      "text": "Savings"
+    },
+    {
+      "role": "term",
+      "name": "",
+      "text": "Initial deposit"
+    },
+    {
+      "role": "definition",
+      "name": "",
+      "text": "$250.00"
+    },
+    {
+      "role": "term",
+      "name": "",
+      "text": "Nickname"
+    },
+    {
+      "role": "definition",
+      "name": "",
+      "text": "Demo HITL sub-account"
+    },
+    {
+      "role": "button",
+      "name": "Confirm and open sub-account",
+      "text": ""
+    },
+    {
+      "role": "button",
+      "name": "Back to edit",
+      "text": ""
+    }
+  ]
+}

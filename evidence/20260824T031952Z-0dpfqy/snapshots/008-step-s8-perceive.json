@@ -1,0 +1,100 @@
+{
+  "url": "http://localhost:5173/",
+  "title": "Core Banking Console (Mock)",
+  "capturedAt": "2026-08-24T03:19:54.669Z",
+  "nodes": [
+    {
+      "ref": "n1",
+      "role": "main",
+      "name": "",
+      "children": [
+        {
+          "ref": "n2",
+          "role": "region",
+          "name": "Confirm new sub-account",
+          "children": [
+            {
+              "ref": "n3",
+              "role": "heading",
+              "name": "Confirm new sub-account",
+              "states": {
+                "level": "1"
+              },
+              "children": []
+            },
+            {
+              "ref": "n4",
+              "role": "paragraph",
+              "name": "",
+              "text": "Review the details below before creating this sub-account for member 12345. This action cannot be undone.",
+              "children": []
+            },
+            {
+              "ref": "n5",
+              "role": "term",
+              "name": "",
+              "text": "Account type",
+              "children": []
+            },
+            {
+              "ref": "n6",
+              "role": "definition",
+              "name": "",
+              "text": "Savings",
+              "children": []
+            },
+            {
+              "ref": "n7",
+              "role": "term",
+              "name": "",
+              "text": "Initial deposit",
+              "children": []
+            },
+            {
+              "ref": "n8",
+              "role": "definition",
+              "name": "",
+              "text": "$250.00",
+              "children": []
+            },
+            {
+              "ref": "n9",
+              "role": "term",
+              "name": "",
+              "text": "Nickname",
+              "children": []
+            },
+            {
+              "ref": "n10",
+              "role": "definition",
+              "name": "",
+              "text": "Demo HITL sub-account",
+              "children": []
+            },
+            {
+              "ref": "n11",
+              "role": "button",
+              "name": "Confirm and open sub-account",
+              "children": []
+            },
+            {
+              "ref": "n12",
+              "role": "button",
+              "name": "Back to edit",
+              "children": []
+            }
+          ]
+        },
+        {
+          "ref": "n13",
+          "role": "group",
+          "name": "",
+          "text": "Dev tools (demo / automation only)",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "truncated": false,
+  "screenshotPath": "screenshots/008-observation.png"
+}
