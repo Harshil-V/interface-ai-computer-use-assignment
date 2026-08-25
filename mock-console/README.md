@@ -41,9 +41,14 @@ There is intentionally no login screen — see "Session model" below.
 | Input | Expected behavior |
 |---|---|
 | Member ID `12345` | Found; savings balance `$1,240.55` |
+| Member ID `67890` | Found; savings balance `$84,302.19` (second member, distinct balance shape) |
 | Member ID `99999` | "No member found" (business outcome, not an error/crash) |
 | Empty submission | Validation message "Member ID is required", no lookup performed |
 | Idle session past timeout | "Session expired" state on member-detail / open-sub-account screens |
+
+The two valid members exist so the same capability can be replayed against both: matching
+outputs from different inputs is what shows `memberId` is a real parameter, not a value
+captured from one recorded run.
 
 ## Session model (replaces login)
 
