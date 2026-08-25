@@ -1,0 +1,118 @@
+{
+  "runId": "20260824T223353Z-gh5kcg",
+  "mode": "replay",
+  "goal": "Replay \"member.savings-balance.read\" v1 with {\"memberId\":\"12345\"}.",
+  "startedAt": "2026-08-24T22:33:53.384Z",
+  "finishedAt": "2026-08-24T22:33:55.037Z",
+  "redaction": {
+    "appliedTo": [
+      "step values",
+      "extracted values",
+      "persisted accessibility snapshots"
+    ],
+    "classifiedValueCount": 0
+  },
+  "steps": [
+    {
+      "index": 1,
+      "at": "2026-08-24T22:33:54.848Z",
+      "type": "navigate",
+      "reason": "Open the entry URL for capability \"member.savings-balance.read\".",
+      "action": {
+        "kind": "navigate",
+        "url": "http://localhost:5173/"
+      },
+      "outcome": "ok",
+      "url": "http://localhost:5173/"
+    },
+    {
+      "index": 2,
+      "at": "2026-08-24T22:33:54.875Z",
+      "type": "act",
+      "reason": "Step \"s1\": fill on textbox \"Member ID\".",
+      "action": {
+        "kind": "fill",
+        "ref": "r1",
+        "value": "*2345"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 3,
+      "at": "2026-08-24T22:33:54.914Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s1\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/001-observation.png",
+      "snapshot": "snapshots/001-step-s1-perceive.json"
+    },
+    {
+      "index": 4,
+      "at": "2026-08-24T22:33:54.939Z",
+      "type": "act",
+      "reason": "Step \"s2\": click on button \"Look up member\".",
+      "action": {
+        "kind": "click",
+        "ref": "n5"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 5,
+      "at": "2026-08-24T22:33:54.969Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s2\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/002-observation.png",
+      "snapshot": "snapshots/002-step-s2-perceive.json"
+    },
+    {
+      "index": 6,
+      "at": "2026-08-24T22:33:54.990Z",
+      "type": "act",
+      "reason": "Step \"s3\": click on button \"View details for member 12345\".",
+      "action": {
+        "kind": "click",
+        "ref": "n17"
+      },
+      "outcome": "ok"
+    },
+    {
+      "index": 7,
+      "at": "2026-08-24T22:33:55.010Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s3\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/003-observation.png",
+      "snapshot": "snapshots/003-step-s3-perceive.json"
+    },
+    {
+      "index": 8,
+      "at": "2026-08-24T22:33:55.012Z",
+      "type": "act",
+      "reason": "Step \"s4\": extract on definition (unnamed).",
+      "action": {
+        "kind": "extract",
+        "ref": "n7"
+      },
+      "outcome": "ok",
+      "extracted": "[redacted]"
+    },
+    {
+      "index": 9,
+      "at": "2026-08-24T22:33:55.036Z",
+      "type": "perceive",
+      "reason": "Check for a matching declared outcome after step \"s4\".",
+      "outcome": "ok",
+      "url": "http://localhost:5173/",
+      "screenshot": "screenshots/004-observation.png",
+      "snapshot": "snapshots/004-step-s4-perceive.json"
+    }
+  ],
+  "outcome": {
+    "status": "completed"
+  }
+}
