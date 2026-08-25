@@ -143,3 +143,6 @@ vite.config.ts.timestamp-*
 .vite/
 
 .githooks/
+
+# Local working notes, deliberately not shipped. See REPORT.md for what was built.
+/docs/
