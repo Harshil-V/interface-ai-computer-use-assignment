@@ -149,6 +149,20 @@ describe('artifactSchema', () => {
     expect(() => artifactSchema.parse(invalid)).toThrow();
   });
 
+  it('accepts both approval states', () => {
+    const draft = artifactSchema.parse(canonicalArtifact());
+    const approved = artifactSchema.parse({ ...canonicalArtifact(), approval: { state: 'approved' } });
+
+    expect(draft.approval.state).toBe('draft');
+    expect(approved.approval.state).toBe('approved');
+  });
+
+  it('rejects an unknown approval state', () => {
+    const invalid = { ...canonicalArtifact(), approval: { state: 'rubber-stamped' } };
+
+    expect(() => artifactSchema.parse(invalid)).toThrow();
+  });
+
   it('rejects a target scope with a non-http entryUrl', () => {
     const invalid = canonicalArtifact();
     invalid['target'] = { ...(invalid['target'] as Record<string, unknown>), entryUrl: 'not-a-url' };

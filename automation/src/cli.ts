@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
+import { checkUnattendedReplay } from './artifact/approval.ts';
 import type { Artifact } from './artifact/schema.ts';
 import { artifactFilePath, loadArtifact, saveArtifact } from './artifact/store.ts';
 import { ConfigError, loadConfig, type AutomationConfig } from './config.ts';
@@ -20,6 +21,7 @@ import { PlaywrightWebDriver } from './surface/PlaywrightWebDriver.ts';
 const COMMAND_SNAPSHOT = 'snapshot';
 const COMMAND_DISCOVER = 'discover';
 const COMMAND_REPLAY = 'replay';
+const COMMAND_APPROVE = 'approve';
 const COMMAND_OPERATOR = 'operator';
 const DEFAULT_ARTIFACT_VERSION = 1;
 const DEFAULT_OPERATOR_PORT = 4310;
@@ -40,19 +42,33 @@ Commands:
     declares a dead end, or exhausts its step/time budget. Prints a rough capability
     artifact and writes a full evidence folder.
 
-  ${COMMAND_REPLAY} --artifact <path-or-id> [--input name=value ...] [--url <entryUrl>]
+  ${COMMAND_REPLAY} --artifact <path-or-id> [--input name=value ...] [--url <entryUrl>] [--allow-draft]
     Deterministically replays a frozen capability artifact. Zero LLM spend — the
     ReplayEngine never imports an LLM client. <path-or-id> is either a path to an artifact
     JSON file, or a bare capability id (optionally "id@version", defaulting to
     version ${DEFAULT_ARTIFACT_VERSION}) resolved under artifacts/. Repeat --input once per
     declared input. --url overrides the artifact's target.entryUrl, e.g. to append
     "?forceExpireSession=1" for the session_expired recovery demo.
+    Requires the artifact's approval.state to be "approved": replay is the unattended
+    production path, so a capability nobody has reviewed does not run on its own. A
+    "draft" artifact is refused before the browser launches, and no evidence folder is
+    written. --allow-draft overrides that for this one invocation; there is no config
+    option that disables the check.
     Starts an embedded operator HTTP server (see --operator-port) for the run's own
     lease/interventions, in case a step requires human intervention.
     Prints the structured ReplayResult to stdout. Exit code: 0 for "success" and
     "business_outcome" (a business outcome is a successful classification, not a
     crash) or an "escalated" run that resumed; non-zero for "failure" and an
     "escalated" run that was abandoned.
+
+  ${COMMAND_APPROVE} --artifact <path-or-id>
+    Records a human sign-off: sets the artifact's approval.state to "approved" and writes
+    it back through the artifact store, which re-validates it against the schema on write.
+    This is the only way an artifact becomes replayable unattended — ${COMMAND_DISCOVER}
+    always writes "draft", because the model that discovered a capability cannot approve
+    it. Zero LLM spend, no browser. Approving an already-approved artifact rewrites the
+    same state. Touches no policy, browser, or evidence folder, so none of the shared
+    options below apply to it.
 
   ${COMMAND_OPERATOR} [--operator-port <port>]
     Starts a standalone operator HTTP server and blocks until Ctrl+C. Has no live
@@ -87,6 +103,7 @@ const options = {
   input: { type: 'string', multiple: true },
   'operator-port': { type: 'string' },
   capability: { type: 'string' },
+  'allow-draft': { type: 'boolean' },
 } as const;
 
 type CliValues = {
@@ -99,6 +116,7 @@ type CliValues = {
   input?: string[];
   'operator-port'?: string;
   capability?: string;
+  'allow-draft'?: boolean;
 };
 
 async function main(argv: readonly string[]): Promise<number> {
@@ -111,6 +129,10 @@ async function main(argv: readonly string[]): Promise<number> {
 
   if (command === COMMAND_REPLAY) {
     return await runReplayCommand(values);
+  }
+
+  if (command === COMMAND_APPROVE) {
+    return runApproveCommand(values);
   }
 
   if (command !== COMMAND_SNAPSHOT && command !== COMMAND_DISCOVER) {
@@ -260,6 +282,20 @@ async function runReplayCommand(values: CliValues): Promise<number> {
     return EXIT_FAILURE;
   }
 
+  const approval = checkUnattendedReplay(artifact.approval.state, values['allow-draft'] === true);
+  if (approval.outcome === 'refuse') {
+    process.stderr.write(
+      `Refusing to replay "${artifact.id}" v${artifact.version}: ${approval.reason}\n` +
+        `Either record a sign-off — npm run ${COMMAND_APPROVE} -- --artifact ${artifact.id}@${artifact.version} — ` +
+        'or pass --allow-draft to replay it unapproved for this one run.\n',
+    );
+    return EXIT_FAILURE;
+  }
+  // Reaching here on a draft means --allow-draft was passed, since nothing else permits one.
+  if (artifact.approval.state === 'draft') {
+    process.stderr.write(`Replaying an unapproved artifact: ${approval.reason}\n`);
+  }
+
   let params: Record<string, string>;
   try {
     params = parseInputs(values.input ?? []);
@@ -321,6 +357,36 @@ async function runReplayCommand(values: CliValues): Promise<number> {
   } finally {
     await driver.close();
     await operator.close();
+  }
+}
+
+/**
+ * Records the human sign-off that `replay` gates on. Re-saving through `saveArtifact`
+ * re-validates the whole artifact against the schema on write, so promotion cannot be the
+ * step that puts a malformed file on disk.
+ */
+function runApproveCommand(values: CliValues): number {
+  const artifactSpec = requireOption(values, 'artifact');
+  if (artifactSpec === null) {
+    return EXIT_FAILURE;
+  }
+
+  try {
+    const filePath = resolveArtifactPath(artifactSpec);
+    const artifact = loadArtifact(filePath);
+    const alreadyApproved = artifact.approval.state === 'approved';
+    const savedPath = saveArtifact(
+      { ...artifact, approval: { state: 'approved' } },
+      path.dirname(filePath),
+    );
+    process.stderr.write(
+      `${alreadyApproved ? 'Already approved' : 'Approved'} "${artifact.id}" v${artifact.version}.\n` +
+        `Written to ${savedPath}\n`,
+    );
+    return EXIT_SUCCESS;
+  } catch (error) {
+    process.stderr.write(`${messageOf(error)}\n`);
+    return EXIT_FAILURE;
   }
 }
 

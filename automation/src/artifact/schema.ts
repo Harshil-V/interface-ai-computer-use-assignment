@@ -177,8 +177,12 @@ const provenanceSchema = z.object({
 });
 
 const approvalSchema = z.object({
-  /** Only "draft" is produced today; more states arrive with the approval stretch goal. */
-  state: z.enum(['draft']),
+  /**
+   * `"draft"`: discovered but not signed off, so unattended replay is refused.
+   * `"approved"`: reviewed by a human, so unattended replay is permitted. Discovery only
+   * ever emits `"draft"` — promotion is the `approve` command's job, never the model's.
+   */
+  state: z.enum(['draft', 'approved']),
 });
 
 export const artifactSchema = z.object({

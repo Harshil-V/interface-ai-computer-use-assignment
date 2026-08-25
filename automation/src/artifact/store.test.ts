@@ -72,6 +72,22 @@ describe('artifact store', () => {
     });
   });
 
+  it('round-trips an approval promotion: a flipped state saves and reloads as approved', () => {
+    const draftPath = saveArtifact(minimalArtifact(), rootDir);
+    const draft = loadArtifact(draftPath);
+
+    const approvedPath = saveArtifact({ ...draft, approval: { state: 'approved' } }, rootDir);
+
+    expect(approvedPath).toBe(draftPath);
+    expect(loadArtifact(approvedPath).approval.state).toBe('approved');
+  });
+
+  it('rejects promoting an artifact to an approval state the schema does not define', () => {
+    expect(() =>
+      saveArtifact({ ...minimalArtifact(), approval: { state: 'rubber-stamped' } }, rootDir),
+    ).toThrow(ArtifactValidationError);
+  });
+
   it('creates the root directory on save if it does not exist yet', () => {
     const nested = path.join(rootDir, 'nested', 'artifacts');
     const savedPath = saveArtifact(minimalArtifact(), nested);
