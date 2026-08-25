@@ -2,9 +2,10 @@
 
 ## 1. Architecture
 
-**Process model.** There are four CLI commands. `snapshot`, `discover`, and `replay` each run
+**Process model.** There are five CLI commands. `snapshot`, `discover`, and `replay` each run
 as one Node process with one headed Playwright browser context; `operator` starts only the
-operator HTTP server and never launches a browser.
+operator HTTP server and never launches a browser; `approve` reads and rewrites one artifact
+file and does neither.
 
 **No orchestrator class.** The plan called for an `Orchestrator`, but each command turned out
 to be a short, linear function in `cli.ts` that wires up the recorder, lease, intervention
@@ -50,9 +51,10 @@ are inferred from it. Both committed artifacts are real instances;
   the artifact, keeping `ReplayEngine` generic. A Zod `superRefine` enforces that
   `recoverable` carries a `recovery` policy and `business_outcome` carries none.
 - **`checkpoint`, `provenance`, `approval.state`** — the success condition asserted at the end
-  of every replay; the discovery run and evidence path, without the transcript; and an
-  approval state, always `"draft"` today, which costs nothing and avoids a schema break if
-  that stretch goal is picked up.
+  of every replay; the discovery run and evidence path, without the transcript; and the
+  approval state, `"draft" | "approved"`, which the `replay` command reads as a precondition
+  before it will run a capability unattended (§6). Discovery only ever writes `"draft"`, so
+  the state means what it says: the model discovered this, and nobody has signed for it yet.
 
 **Deviation from the plan: `namePattern` was never built.** The plan sketched a regex
 `namePattern` on the target descriptor. Parameterized names such as `"View details for member
@@ -217,6 +219,29 @@ confirmation click. Permitting an irreversible one in a regulated financial syst
 account opened or money moved with no UI-level undo. The only escape hatch is an explicit,
 per-run, human-granted hand-back. No config flag silently disables the check.
 
+**A second human control, at invocation time.** The approval gate (§7) applies the same posture
+one level up. `replay` requires `approval.state === "approved"` and refuses a draft before the
+browser launches; the override is `--allow-draft`, typed per invocation, and there is no
+policy-file key that disables it. The two controls are independent and answer different
+questions: approval decides whether this capability may run at all, the guardrail decides
+whether a particular step may run now. So `member.sub-account.open` — irreversible, no undo — is
+covered by both, while the read-only `member.savings-balance.read` is approved and has no
+irreversible step, so neither control gates it.
+`20260824T223353Z-gh5kcg` is a replay of the approved capability recorded after the gate was in
+place. A refusal records nothing at all: the check runs before the evidence recorder exists, and
+a run directory saying nothing happened is worse than no directory.
+
+**The gate's limit is where it lives.** `checkUnattendedReplay` is called from `cli.ts`, not from
+`ReplayEngine`, so it guards the CLI invocation path rather than being unbypassable the way the
+guardrail check is. The guardrail sits inside `act()`, the one function every automated action
+goes through; the approval check does not have that property, and an in-process caller of
+`runReplay` is not stopped by it. Two committed scripts are exactly that caller:
+`scripts/demo-replay-intervention.ts` and `scripts/demo-replay-recovery.ts` load an artifact and
+call `runReplay` directly, so the intervention demo still replays the draft sub-account
+capability. That is a deliberate placement — approval is authorization to start a run, not a rule
+about touching the page — but it is a weaker guarantee than the guardrail's and worth naming as
+one.
+
 **Redaction happens at the persistence boundary, not the call boundary.** `EvidenceRecorder`
 masks two things by declared sensitivity: the `value` on a `fill`/`select` step (sensitivity
 from `artifact.inputs[]`) and the `extracted` value on an extract step (from
@@ -236,7 +261,7 @@ run log verbatim: `evidence/20260824T004048Z-j3wtux/run.json` records "No member
 **The run log overstates its own redaction.** `EvidenceRecorder.finish` writes a hardcoded
 `redaction.appliedTo` array that lists "persisted accessibility snapshots," the same claim the
 paragraph above retracts, and a `classifiedValueCount` that is `0` in every run because
-`classify()` has no production caller. All eight committed runs carry that wording. The
+`classify()` has no production caller. Every committed run carries that wording. The
 paragraph above is the accurate account; the field was left as recorded rather than rewritten
 after the fact.
 
@@ -245,11 +270,28 @@ the clear. Pixel-level redaction was judged disproportionate for this exercise.
 
 ## 7. Cuts
 
-- **No stretch goal (§8) was attempted.** Time went into making the required vertical slice
-  (§3.1–§3.6, plus a design answer for §3.7) real and correct. Next would be the
-  **agent-facing capability catalog**: the artifacts are already typed, callable contracts, so
-  the work is exposing the existing `artifacts/` store as a name-addressable, invokable one.
-- **No `Orchestrator.ts`** (§1) — four linear CLI commands never needed a shared
+- **One stretch goal (§8), and only half of it: "Confidence & approval."** The approval gate is
+  built — `approval.state` is `"draft" | "approved"`, `replay` refuses a draft before the browser
+  launches, `approve` records the sign-off, `--allow-draft` is the per-run override, and
+  discovery still only ever emits drafts (§2). **Reliability scoring was deliberately not
+  built.** Replay here is deterministic against a stable local mock app with a synchronous UI, so
+  a score computed from repeated replays would be structurally 1.0 for every artifact that works
+  at all, and would move only when Playwright timing noise made a run flake. That measures this
+  machine's scheduling jitter, not the capability's reliability — a number that looks like signal
+  and is not one. Approval needs no such proxy: it is a human sign-off, which is also how the real
+  domain works, since you do not get to open member accounts unattended because a script went
+  green N times. The gate is a precondition, not a fifth `ReplayResult`: a refused replay is a run
+  that never started, in the same class as a missing required input, so the four-way result
+  contract in §3 is unchanged.
+- **Next would be the agent-facing capability catalog** (§8): the artifacts are already typed,
+  callable contracts, so the work is exposing the existing `artifacts/` store as a
+  name-addressable, invokable one — and `approval.state` is now the field that catalog would
+  filter on.
+- **Approval carries no identity or timestamp.** `approval` holds only `state`. Who approved a
+  capability and when is real audit metadata in a regulated system and belongs right there, but
+  nothing in this repo would read it, and an unread field defended as future-proofing is the
+  argument §2 no longer makes.
+- **No `Orchestrator.ts`** (§1) — five linear CLI commands never needed a shared
   mode-switching abstraction.
 - **`wait.until` and `timeoutMs` are schema-only, unread by the engine** (§3) — kept as a
   documented extension point for a surface that would actually need them.

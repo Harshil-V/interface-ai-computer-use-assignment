@@ -12,12 +12,19 @@ declared retry policy is exhausted.
 ## The two committed capabilities
 
 - **`member.savings-balance.read`** — looks up a member by ID and reads their savings
-  balance back out as a typed `currency` output.
+  balance back out as a typed `currency` output. `approval.state` is `"approved"`, so it
+  replays unattended.
 - **`member.sub-account.open`** — fills out and submits the multi-field "open sub-account"
   form for a member and confirms it. Its final step is `effect: "irreversible"` and is
   guardrail-gated: unattended replay pauses and escalates to a human before that step runs.
   See [`REPORT.md`](REPORT.md) §5 and §2 for why, and for how that step ended up in the
-  artifact.
+  artifact. `approval.state` is `"draft"`, so `npm run replay` refuses it.
+
+The two states differ by risk, not by how well either one replays. Reading a balance is
+read-only and idempotent. Opening a sub-account creates a real account with no UI-level undo, so
+it sits behind two independent human controls — an approval before the run may start, and a
+guardrail intervention before the irreversible step may run — while nothing gates the read-only
+one. The gate is described under [The approval gate](#4-the-approval-gate).
 
 Both are versioned JSON under [`artifacts/`](artifacts/). Both have real discovery-run and
 replay-run evidence under [`evidence/`](evidence/). Each artifact's `provenance.discoveryRunId`
@@ -78,6 +85,9 @@ lets the model shortcut to reading the balance straight off the search-results t
 > **Warning: a successful run overwrites a committed artifact file.** This goal matches the
 > shape of the `member.savings-balance.read` capability, so discovery freezes its result over
 > `artifacts/member.savings-balance.read.v1.json`, replacing the copy committed in this repo.
+> The replacement is written as a `draft`, because discovery never approves its own output, so
+> the replays in step 2 will be refused until you re-approve it — see
+> [The approval gate](#4-the-approval-gate).
 
 You don't have to run this step to see the system work: step 2 replays what is already
 saved. This goal is the one behind `member.savings-balance.read`; `member.sub-account.open`
@@ -143,6 +153,55 @@ npx tsx scripts/demo-replay-intervention.ts   # risky-action intervention: take 
 npx tsx scripts/demo-discovery-stuck.ts        # forced-stuck discovery: escalate, then abandon
 ```
 
+### 4. The approval gate
+
+`replay` is the path an AI agent triggers with nobody watching, so it requires the artifact's
+`approval.state` to be `"approved"`. `member.savings-balance.read` is approved, which is why
+every command in step 2 runs. `member.sub-account.open` is a draft, and asking to replay it is
+refused before the browser launches:
+
+```bash
+npm run replay -- --artifact member.sub-account.open --input memberId=12345 \
+  --input accountType=Savings --input initialDepositAmount=100 --input nickname="New Savings"
+```
+
+```
+Refusing to replay "member.sub-account.open" v1: Artifact approval state is "draft", so unattended replay is refused.
+Either record a sign-off — npm run approve -- --artifact member.sub-account.open@1 — or pass --allow-draft to replay it unapproved for this one run.
+```
+
+The command exits non-zero and writes no evidence folder. The check runs before the recorder is
+created, and a run directory recording that nothing happened is worse than no directory, so a
+refusal leaves nothing behind but that message. Note that the invocation above is otherwise
+complete — every declared input is supplied — and it is still refused.
+
+`approve` records the sign-off. It sets `approval.state` to `"approved"` and writes the artifact
+back through the same store `replay` loads it with, so the promotion is re-validated against the
+schema on write:
+
+```bash
+npm run approve -- --artifact member.savings-balance.read
+```
+
+[`evidence/20260824T223353Z-gh5kcg/`](evidence/20260824T223353Z-gh5kcg/) is a replay of the
+approved capability recorded with the gate in place, so the happy path above is exercised, not
+just asserted.
+
+The gate has one override, and it is per-invocation: adding `--allow-draft` to the refused
+command above permits that single run and prints a line to stderr saying it did. There is no
+policy-file option that turns the check off; a config key would make the gate ambient, which is
+the thing an explicit flag exists to prevent. `--allow-draft` only lifts the invocation-level
+check — the sub-account capability's irreversible step still escalates to a human mid-run, so an
+unapproved draft does not become an unattended one.
+
+The gate lives in the CLI, so the `scripts/demo-*.ts` drivers in step 3 are not subject to it:
+they load an artifact and call the replay engine directly, which is why
+`demo-replay-intervention.ts` still runs the draft sub-account capability. [`REPORT.md`](REPORT.md)
+§6 says why the check is placed there and what that costs.
+
+Reliability scoring, the other half of this stretch goal, was deliberately not built.
+[`REPORT.md`](REPORT.md) §7 says why.
+
 ## Checks and zero-LLM commands
 
 None of these need an `ANTHROPIC_API_KEY`, and none of them make an LLM call.
@@ -168,6 +227,6 @@ the discovery agent actually sees, at zero LLM spend.
 - Part A's screens, fixtures, and session/expiry model: [`mock-console/README.md`](mock-console/README.md)
 - Architecture, artifact schema, determinism/error handling, heterogeneity, escalation,
   safety, and what was cut: [`REPORT.md`](REPORT.md)
-- Full CLI reference (`snapshot` / `discover` / `replay` / `operator`, all flags): run
+- Full CLI reference (`snapshot` / `discover` / `replay` / `approve` / `operator`, all flags): run
   `npm run automation` with no arguments, or read the `USAGE` string at the top of
   [`automation/src/cli.ts`](automation/src/cli.ts).
