@@ -1,7 +1,7 @@
 /**
  * Frozen fixture data for the mock Core Banking Console.
  * These IDs and balances are contractual test cases relied on by
- * downstream automation (see docs/2026-08-13-computer-use-automation-notes.md §3).
+ * downstream automation (see "Built-in fixture cases" in ../../README.md).
  */
 
 export interface Member {

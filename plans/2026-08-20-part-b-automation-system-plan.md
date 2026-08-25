@@ -3,7 +3,7 @@
 **Date:** 2026-08-20
 **Repo:** `interface-ai-computer-use-assignment`
 **Scope:** `automation/` (Part B). Part A (`mock-console/`) is complete and committed.
-**Planning source of truth:** [`docs/2026-08-13-computer-use-automation-notes.md`](../docs/2026-08-13-computer-use-automation-notes.md) + `Assignment A — Computer-Use Automation System.pdf` (repo root).
+**Planning source of truth:** a working notes document (kept out of the shipped repo) + `Assignment A — Computer-Use Automation System.pdf` (repo root).
 
 > **There is no separate PRD or design spec for this project.** The working notes doc plus the
 > assignment brief serve that role jointly: the brief is the authoritative requirements source,
@@ -792,7 +792,7 @@ as not having thought about it.
 
 ## Cross-references
 
-- Frozen decisions, demo scenarios, error taxonomy, and cut list:
-  [`docs/2026-08-13-computer-use-automation-notes.md`](../docs/2026-08-13-computer-use-automation-notes.md)
+- Frozen decisions, demo scenarios, error taxonomy, and cut list: the working notes
+  document (kept out of the shipped repo)
 - Part A behavior, fixtures, session model, and accessibility contract: `mock-console/README.md`
 - Authoritative requirements: `Assignment A — Computer-Use Automation System.pdf` (repo root)

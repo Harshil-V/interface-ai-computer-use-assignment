@@ -1,9 +1,9 @@
 # Mock Core Banking Console (Part A)
 
 A local, mock "Core Banking Console" used as the automation target for Part B of the
-assignment (see `docs/2026-08-13-computer-use-automation-notes.md` at the repo root for
-the full rationale). It is a pure client-side Vite + React + TypeScript app: no backend,
-no real bank systems, fixture data only.
+assignment (see [`REPORT.md`](../REPORT.md) at the repo root for the full rationale). It
+is a pure client-side Vite + React + TypeScript app: no backend, no real bank systems,
+fixture data only.
 
 ## Running
 

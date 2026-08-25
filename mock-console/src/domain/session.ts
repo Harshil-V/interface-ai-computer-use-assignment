@@ -1,5 +1,5 @@
 /**
- * Session model that replaces a login screen (see docs/2026-08-13-computer-use-automation-notes.md §3):
+ * Session model that replaces a login screen (see "Session model" in ../../README.md):
  * a session is established in-memory on first app load and expires after an idle period,
  * giving automation a real "session expired" state to exercise without a full auth flow.
  */
